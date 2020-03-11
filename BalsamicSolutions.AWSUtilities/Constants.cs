@@ -7,7 +7,7 @@ namespace BalsamicSolutions.AWSUtilities
     /// <summary>
     /// constants and shared statics
     /// </summary>
-    public class Constants
+    internal class Constants
     {
     }
 }

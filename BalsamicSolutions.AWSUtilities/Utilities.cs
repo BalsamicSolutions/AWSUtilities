@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BalsamicSolutions.AWSUtilities
 {
-    class Utilities
+    internal class Utilities
     {
     }
 }

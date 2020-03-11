@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BalsamicSolutions.AWSUtilities.SQS
 {
-    class SqsQueueDispatcher
+    public class SqsQueueDispatcher
     {
     }
 }

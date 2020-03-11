@@ -4,7 +4,10 @@ using System.Text;
 
 namespace BalsamicSolutions.AWSUtilities.EC2
 {
-    class AutoScaleLifeCycleMonitor
+    /// <summary>
+    /// 
+    /// </summary>
+    public class AutoScaleLifeCycleMonitor
     {
     }
 }

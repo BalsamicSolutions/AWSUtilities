@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BalsamicSolutions.AWSUtilities.RDS
 {
-    class MySQLRoleAuthenticationPlugin
+   public class MySQLRoleAuthenticationPlugin
     {
     }
 }
