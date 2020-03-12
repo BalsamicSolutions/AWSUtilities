@@ -14,6 +14,8 @@
     <PackageIcon>BalsamicSolutionsIcon.ico</PackageIcon>
     <PackageIconUrl />
     <ApplicationIcon>BalsamicSolutionsIcon.ico</ApplicationIcon>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Amazon.Lambda.CloudWatchEvents" Version="1.0.0" />
