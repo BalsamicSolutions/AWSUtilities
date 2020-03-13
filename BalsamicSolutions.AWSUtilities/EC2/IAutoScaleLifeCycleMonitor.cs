@@ -4,7 +4,15 @@ using System.Text;
 
 namespace BalsamicSolutions.AWSUtilities.EC2
 {
-    public class IAutoScaleLifeCycleMonitor
+   /// <summary>
+    /// interface for AutoScaleLifeCycleMonitor
+    /// </summary>
+    public interface IAutoScaleLifeCycleMonitor
     {
+        event EventHandler BeforeTerminate;
+
+        bool AddRef();
+
+        void Release();
     }
 }

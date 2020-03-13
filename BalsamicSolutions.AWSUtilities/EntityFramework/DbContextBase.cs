@@ -18,6 +18,7 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
     /// </summary>
     public class DbContextBase : DbContext
     {
+        //TODO enable full text
 
         ///// <summary>
         ///// ctor
