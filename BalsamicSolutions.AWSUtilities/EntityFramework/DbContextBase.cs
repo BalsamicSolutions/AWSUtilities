@@ -1,4 +1,9 @@
-﻿using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using MySql.Data.EntityFrameworkCore.Infraestructure;
@@ -12,7 +17,7 @@ using System.Threading.Tasks;
 namespace BalsamicSolutions.AWSUtilities.EntityFramework
 {
     /// <summary>
-    /// base class with all of our attributes and 
+    /// base class with all of our attributes and
     /// extensions wired up, use it or clone it
     /// for activating index, fulltext and uppercase
     /// </summary>
@@ -26,7 +31,6 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         ///// <param name="connectionString">connection string</param>
         //public DbContextBase(string connectionString)
         //{
-
         //}
 
         /// <summary>

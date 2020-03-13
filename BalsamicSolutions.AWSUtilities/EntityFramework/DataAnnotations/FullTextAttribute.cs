@@ -1,4 +1,9 @@
-﻿using System;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,43 +13,47 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations
     /// attribute on a property indicated the property should
     /// participate in a full text index
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
-    public class FullTextAttribute:Attribute
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Class, AllowMultiple = false)]
+    public class FullTextAttribute : Attribute
     {
-         /// <summary>
-        /// Gets or sets the index name.
+        /// <summary>
+        /// Gets or sets the index name. only applies to Class's
         /// </summary>
         public string Name { get; }
 
         /// <summary>
-        /// Gets or sets a number that determines the column ordering 
+        /// Gets or sets a number that determines the column ordering
+        /// only applies to Properties
         /// </summary>
         public int Order { get; }
 
-         /// <summary>
-        /// Initializes a new IndexAttribute instance for an index that will be named by convention and has no column order, uniqueness specified.
+        /// <summary>
+        /// Initializes a new IndexAttribute
         /// </summary>
-        public FullTextAttribute() : this(string.Empty, -1)
+        public FullTextAttribute()
         {
+            Order = -1;
+            Name = string.Empty;
         }
 
         /// <summary>
-        /// Initializes a new IndexAttribute instance for an index with the given name and has no column order, uniqueness specified.
+        /// Initializes a new IndexAttribute instance for the Classes IndexName attribute
         /// </summary>
         /// <param name="name">The index name.</param>
-        public FullTextAttribute(string name) : this(name, -1)
+        public FullTextAttribute(string name)
         {
+            Order = -1;
+            Name = name;
         }
 
         /// <summary>
-        /// Initializes a new IndexAttribute instance for an index with the given name and column order, but with no uniqueness specified.
+        /// Initializes a new IndexAttribute instance for a Property with an order to it
         /// </summary>
-        /// <param name="name">The index name.</param>
         /// <param name="order">A number which will be used to determine column ordering for multi-column indexes.</param>
-        public FullTextAttribute(string name, int order)
+        public FullTextAttribute(int order)
         {
-            this.Name = name;
-            this.Order = order;
+            Order = order;
+            Name = string.Empty;
         }
     }
 }
