@@ -26,7 +26,6 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
     /// </summary>
     public static class MySQLExtensions
     {
-
         /// <summary>
         /// gets the connection string
         /// </summary>
@@ -88,13 +87,26 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
+        /// cache for expensive lookups
+        /// </summary>
+        private static Dictionary<string, bool> _LowerCaseCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// checks to see if MySQL is running in "normalized lower case table names" mode
         /// </summary>
         /// <param name="dbCtx"></param>
         /// <returns></returns>
         public static bool MySqlLowerCaseTableNames(this DbContext dbCtx)
         {
+            string connectionString = dbCtx.GetConnectionString();
             bool returnValue = false;
+            lock (_LowerCaseCache)
+            {
+                if (_LowerCaseCache.TryGetValue(connectionString, out returnValue))
+                {
+                    return returnValue;
+                }
+            }
             //check the MySql settings foro the table names
             using (RelationalDataReader relReader = dbCtx.Database.ExecuteSqlQuery("SHOW VARIABLES LIKE \"lower_case_table_names\";", new object[] { }))
             {
@@ -108,6 +120,10 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                         returnValue = true;
                     }
                 }
+            }
+            lock (_LowerCaseCache)
+            {
+                _LowerCaseCache[connectionString] = returnValue;
             }
             return returnValue;
         }

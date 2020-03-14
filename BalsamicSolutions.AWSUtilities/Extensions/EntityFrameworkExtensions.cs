@@ -84,6 +84,22 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
+        /// Gets the full text index name of a table
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <param name="entityType"></param>
+        /// <returns></returns>
+        public static string GetFullTextIndexName(this DbContext dbCtx, Type entityType)
+        {
+            string tableName = dbCtx.GetActualTableName(entityType);
+            string returnValue = "FT_" + tableName;
+            FullTextAttribute ftAttribute = entityType.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
+            if (null != ftAttribute && !ftAttribute.Name.IsNullOrWhiteSpace()) returnValue = ftAttribute.Name;
+            return returnValue;
+        }
+
+
+        /// <summary>
         /// validates the MySQL Fulltext configuration for the entities in
         /// the provided dbcontext. Intended to be applied during a seed
         /// or migration. See dbContextBase for helper implementation
@@ -101,13 +117,11 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 if (typeof(string) == entityType.ClrType)
                 {
                     string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
-                    string indexName = "FT_" + tableName;
-                    FullTextAttribute ftAttribute = entityType.ClrType.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
-                    if (null != ftAttribute && !ftAttribute.Name.IsNullOrWhiteSpace()) indexName = ftAttribute.Name;
+                    string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
                     tableName = tableName + ":" + indexName;
                     foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
                     {
-                        ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
+                        FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
                         if (null != ftAttribute)
                         {
                             string columnName = pInfo.Name;
