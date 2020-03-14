@@ -113,33 +113,46 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             //collect all the columns that are marked for includsion
             string databaseName = dbCtx.DatabaseName();
+            Dictionary<string, string> dbDescription = DescribeAllFullTextIndices(dbCtx, databaseName);
+            Dictionary<string, string> modelDescription = DescribeAllFullTextIndices(dbCtx);
+            if (!FullTextDescriptionsAreTheSame(dbDescription, modelDescription))
+            {
+                CreateFullTextIndices(dbCtx);
+            }
+        }
+
+        /// <summary>
+        /// creates full text indices
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        public static void CreateFullTextIndices(this DbContext dbCtx)
+        {
+            string databaseName = dbCtx.DatabaseName();
             bool lowerCaseTableNames = dbCtx.MySqlLowerCaseTableNames();
             Dictionary<string, Dictionary<string, FullTextAttribute>> fullTextMap = new Dictionary<string, Dictionary<string, FullTextAttribute>>(StringComparer.OrdinalIgnoreCase);
             foreach (IEntityType entityType in dbCtx.Model.GetEntityTypes().Where(ent => ent.ClrType.GetCustomAttribute<OwnedAttribute>() == null).ToList())
             {
-                if (typeof(string) == entityType.ClrType)
+                string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
+                string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
+                tableName = tableName + ":" + indexName;
+                foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
                 {
-                    string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
-                    string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
-                    tableName = tableName + ":" + indexName;
-                    foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
+                    FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
+                    if (null != ftAttribute)
                     {
-                        FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
-                        if (null != ftAttribute)
+                        string columnName = pInfo.Name;
+                        ColumnAttribute columnNameAttribute = pInfo.GetCustomAttributes<ColumnAttribute>().FirstOrDefault() as ColumnAttribute;
+                        if (null != columnNameAttribute && !columnNameAttribute.Name.IsNullOrEmpty()) columnName = columnNameAttribute.Name;
+                        Dictionary<string, FullTextAttribute> tableMap = null;
+                        if (!fullTextMap.TryGetValue(tableName, out tableMap))
                         {
-                            string columnName = pInfo.Name;
-                            ColumnAttribute columnNameAttribute = pInfo.GetCustomAttributes<ColumnAttribute>().FirstOrDefault() as ColumnAttribute;
-                            if (null != columnNameAttribute && !columnNameAttribute.Name.IsNullOrEmpty()) columnName = columnNameAttribute.Name;
-                            Dictionary<string, FullTextAttribute> tableMap = null;
-                            if (!fullTextMap.TryGetValue(tableName, out tableMap))
-                            {
-                                tableMap = new Dictionary<string, FullTextAttribute>(StringComparer.OrdinalIgnoreCase);
-                                fullTextMap[tableName] = tableMap;
-                            }
-                            tableMap[columnName] = ftAttribute;
+                            tableMap = new Dictionary<string, FullTextAttribute>(StringComparer.OrdinalIgnoreCase);
+                            fullTextMap[tableName] = tableMap;
                         }
+                        tableMap[columnName] = ftAttribute;
                     }
                 }
+
             }
 
             DropFullTextIndices(dbCtx, databaseName);
@@ -167,6 +180,118 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 //now kill them
                 dbCtx.ExecuteSqlCommand(sqlCommand);
             }
+        }
+
+        /// <summary>
+        /// compares DB and Model descriptions
+        /// NOTE: does not consider column order
+        /// </summary>
+        /// <param name="desOne"></param>
+        /// <param name=""></param>
+        /// <param name=""></param>
+        /// <returns></returns>
+        static bool FullTextDescriptionsAreTheSame(Dictionary<string, string> desOne, Dictionary<string, string> desTwo)
+        {
+            bool returnValue = false;
+            if (desOne.Count == desTwo.Count)
+            {
+                returnValue = true;
+                foreach (string keyName in desOne.Keys.ToArray())
+                {
+                    string colNamesOne = desOne[keyName];
+                    if (!desTwo.TryGetValue(keyName, out string colNamesTwo))
+                    {
+                        returnValue = false;
+                    }
+                    if (returnValue)
+                    {
+                        HashSet<string> namesOne = new HashSet<string>(colNamesOne.Split(','),StringComparer.OrdinalIgnoreCase);
+                        HashSet<string> namesTwo = new HashSet<string>(colNamesTwo.Split(','),StringComparer.OrdinalIgnoreCase);
+                        returnValue = namesOne.Count == namesTwo.Count;
+                        if (returnValue)
+                        {
+                            foreach (string nameOne in namesOne)
+                            {
+                                if (!namesTwo.Contains(nameOne))
+                                {
+                                    returnValue = false;
+                                }
+                                if (!returnValue) break;
+                            }
+                        }
+                    }
+                    if (!returnValue) break;
+                }
+            }
+            return returnValue;
+        }
+
+        /// <summary>
+        /// creates a description of all table/full text indices
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <param name="datbaseName"></param>
+        /// <returns></returns>
+        private static Dictionary<string, string> DescribeAllFullTextIndices(DbContext dbCtx)
+        {
+            bool lowerCaseTableNames = dbCtx.MySqlLowerCaseTableNames();
+            Dictionary<string, string> returnValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (IEntityType entityType in dbCtx.Model.GetEntityTypes().Where(ent => ent.ClrType.GetCustomAttribute<OwnedAttribute>() == null).ToList())
+            {
+                string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
+                string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
+                string keyName = tableName + ":" + indexName;
+                List<string> columnNames = new List<string>();
+                foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
+                {
+                    FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
+                    if (null != ftAttribute)
+                    {
+                        string columnName = pInfo.Name;
+                        ColumnAttribute columnNameAttribute = pInfo.GetCustomAttributes<ColumnAttribute>().FirstOrDefault() as ColumnAttribute;
+                        if (null != columnNameAttribute && !columnNameAttribute.Name.IsNullOrEmpty()) columnName = columnNameAttribute.Name;
+                        columnNames.Add(columnName);
+                    }
+                }
+                if (columnNames.Count > 0)
+                {
+                    returnValue[keyName] = string.Join(",", columnNames);
+                }
+
+            }
+            return returnValue;
+        }
+
+
+        /// <summary>
+        /// creates a description of all table/full text indices from the database
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <param name="datbaseName"></param>
+        /// <returns></returns>
+        private static Dictionary<string, string> DescribeAllFullTextIndices(DbContext dbCtx, string datbaseName)
+        {
+            Dictionary<string, string> returnValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string sqlQuery = $"SELECT index_name,table_name, group_concat(distinct column_name) FROM information_Schema.STATISTICS WHERE table_schema = '{datbaseName}' AND index_type = 'FULLTEXT';";
+            using (var dataReader = dbCtx.Database.ExecuteSqlQuery(sqlQuery))
+            {
+                System.Data.Common.DbDataReader dbDataReader = dataReader.DbDataReader;
+                if (null != dbDataReader)
+                {
+                    while (dbDataReader.Read())
+                    {
+                        object indexName = dbDataReader[0];
+                        object tableName = dbDataReader[1];
+                        object columnNames = dbDataReader[2];
+                        if (null != indexName && null != tableName)
+                        {
+                            string keyName = $"{tableName}:{indexName}";
+                            returnValue[keyName] = columnNames.ToString();
+                        }
+                    }
+                }
+            }
+            return returnValue;
         }
 
         /// <summary>
