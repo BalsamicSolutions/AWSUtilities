@@ -4,10 +4,12 @@
 //   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
 //  -----------------------------------------------------------------------------
 using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
+using BalsamicSolutions.AWSUtilities.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using MySql.Data.EntityFrameworkCore.Infraestructure;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
@@ -23,50 +25,31 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
     /// </summary>
     public class DbContextBase : DbContext
     {
-        //TODO enable full text
 
-        ///// <summary>
-        ///// ctor
-        ///// </summary>
-        ///// <param name="connectionString">connection string</param>
-        //public DbContextBase(string connectionString)
-        //{
-        //}
 
         /// <summary>
-        /// CTOR
+        /// wrapper for migrations, that also activates
+        /// any full text attributes
         /// </summary>
-        /// <param name="options"></param>
-        //public DbContextBase(DbContextOptions<DbContextBase> options)
-        //{
-        //    throw new DataException("Cannot access the DbContext this way, use DbContext:GetContext");
-        //}
+        public void RunMigrations()
+        {
+            IEnumerable<string> migrationList = this.Database.GetPendingMigrations();
+            if (migrationList.Count() > 0)
+            {
+                this.Database.Migrate();
+                this.EnsureFullTextIndices();
+            }
+        }
 
         /// <summary>
-        ///// OnConfiguring
-        ///// </summary>
-        ///// <param name="optionsBuilder"></param>
-        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        //{
-        //    if (!optionsBuilder.IsConfigured)
-        //    {
-        //        MySQLDbContextOptionsBuilder mysqlBldr = new MySQLDbContextOptionsBuilder(optionsBuilder);
-        //        //string connectionString = this.Database.con
-        //        //optionsBuilder.UseMySQL(_ConnectionString, optAct => optAct.ExecutionStrategy(exStg => new AuroraExecutionStrategy(this)));
-        //        base.OnConfiguring(optionsBuilder);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// OnModelCreating
-        ///// </summary>
-        ///// <param name="modelBuilder"></param>
-        //protected override void OnModelCreating(ModelBuilder modelBuilder)
-        //{
-        //    base.OnModelCreating(modelBuilder);
-        //    //modelBuilder.BuildIndexesFromAnnotations();
-        //    //modelBuilder.UseBoolToZeroOneConverter();
-        //}
+        /// OnModelCreating
+        /// </summary>
+        /// <param name="modelBuilder"></param>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.BuildIndexesFromAnnotations();
+        }
 
         /// <summary>
         /// sets all strings of an entity object to uppercase
@@ -77,8 +60,8 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
             {
                 object efObject = efEntity.Entity;
                 Type efType = efObject.GetType();
-                Attribute[] attrs = System.Attribute.GetCustomAttributes(efType, typeof(UpperCaseAttribute));
-                if (null != attrs && attrs.Length > 0)
+                Attribute[] ucaseAttributes = System.Attribute.GetCustomAttributes(efType, typeof(UpperCaseAttribute));
+                if (null != ucaseAttributes && ucaseAttributes.Length > 0)
                 {
                     UpperCaseAttribute.ToUpperCase(efObject);
                 }

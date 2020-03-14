@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Amazon.EC2;
 using Amazon.EC2.Model;
-using BalsamicSolutions.AWSUtilities.EntityFramework.Extensions;
+using BalsamicSolutions.AWSUtilities.Extensions;
 
 namespace BalsamicSolutions.AWSUtilities.EC2
 {

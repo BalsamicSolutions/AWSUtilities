@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Amazon;
 using System.Linq;
 using BalsamicSolutions.AWSUtilities.EC2;
-using BalsamicSolutions.AWSUtilities.EntityFramework.Extensions;
+using BalsamicSolutions.AWSUtilities.Extensions;
 
 namespace BalsamicSolutions.AWSUtilities.SQS
 {
