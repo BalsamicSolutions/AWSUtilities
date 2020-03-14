@@ -27,16 +27,15 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
     ///A natural language search interprets the search string as a phrase in natural human language
     ///(a phrase in free text). There are no special operators, with the exception of double quote (") characters.
     ///
-    ///Full-text searches are natural language searches if the IN NATURAL LANGUAGE MODE modifier is given or if no modifier is given. 
+    ///Full-text searches are natural language searches if the IN NATURAL LANGUAGE MODE modifier is given or if no modifier is given.
     ///
     ///A query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
-    ///Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search. 
+    ///Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
     ///
-    ///A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for. It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual. Certain common words (stopwords) are omitted from the search index and do not match if present in the search string. 
+    ///A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for. It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual. Certain common words (stopwords) are omitted from the search index and do not match if present in the search string.
     /// </summary>
     public static class FullTextQueryableExtensions
     {
-
         /// <summary>
         /// A natural language search interprets the search string as a phrase in natural human language
         /// </summary>
@@ -47,6 +46,92 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
         {
             Type entityType = typeof(TEntity);
+            string[] columnNames = GetFullTextColumnNames(entityType);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false);
+        }
+
+        /// <summary>
+        /// A natural language search interprets the search string as a phrase in natural human language
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet"></param>
+        /// <param name="searchText"></param>
+        /// <param name="columnNames"></param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
+        {
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false);
+        }
+
+        /// <summary>
+        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
+        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
+        /// <param name="searchText"></param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        {
+            Type entityType = typeof(TEntity);
+            string[] columnNames = GetFullTextColumnNames(entityType);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true);
+        }
+
+        /// <summary>
+        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
+        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet"></param>
+        /// <param name="searchText"></param>
+        /// <param name="columnNames"></param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
+        {
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true);
+        }
+
+        /// <summary>
+        /// A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for.
+        /// It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
+        /// <param name="searchText"></param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        {
+            Type entityType = typeof(TEntity);
+            string[] columnNames = GetFullTextColumnNames(entityType);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false);
+        }
+
+        /// <summary>
+        /// A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for.
+        /// It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet"></param>
+        /// <param name="searchText"></param>
+        /// <param name="columnNames"></param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
+        {
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false);
+        }
+
+        /// <summary>
+        /// A natural language search interprets the search string as a phrase in natural human language
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
+        /// <param name="searchText"></param>
+        /// <returns></returns>
+        private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion) where TEntity : class
+        {
+            Type entityType = typeof(TEntity);
+            IQueryable<TEntity> queryableDbSet = thisDbSet as IQueryable<TEntity>;
             DbContext dbCtx = thisDbSet.GetDbContext<TEntity>();
             string tableName = dbCtx.GetActualTableName(entityType);
             string indexName = dbCtx.GetFullTextIndexName(entityType);
@@ -55,52 +140,92 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             {
                 throw new FullTextQueryException(typeof(TEntity).Name + " as (" + tableName + ") does not have a single unique Key.");
             }
-            if (!HasFullTextAttribute(entityType))
+
+            if (null == columnNames || columnNames.Length == 0)
             {
                 throw new FullTextQueryException(typeof(TEntity).Name + " as (" + tableName + ") does not have any FullTextAttributes.");
             }
             //Ok its a good query so compose an execute a query to retrive the Key property values
             //that match the query and convert this to an Queryable expression that finds any
             //additional clauses in a List of those key values
+            //Now get the untyped collection of results from the query
+            ArrayList untypedResults = ExecuteFullTextSearch(dbCtx, tableName, entityKeyNames[0], searchText, columnNames, booleanMode, queryExpansion);
 
-            throw new NotImplementedException();
+            //Ok get the matching TEntity parameter
+            ParameterExpression parameterExpression = Expression.Parameter(queryableDbSet.ElementType, "p");
+            //And now project the propery name on TEntity
+            MemberExpression memberPropertyAccess = MemberExpression.Property(parameterExpression, entityKeyNames[0]);
+            // Convert the results to a typed collection so that the comparisonCondition can be correctly constructed , if we dont
+            //  we will get errors like this (assuming a key of type guid and an untyped array)
+            //  " generic type 'System.Guid' cannot be used for parameter of type 'System.Object' of method 'Boolean Contains(System.Object)'"
+            Expression comparisonCondition = null;
+            LambdaExpression lambdaExpression = null;
+            MethodInfo containsMethod = null;
+
+            switch (keyColumnTypes[0].Name)
+            {
+                case "Guid":
+                    {
+                        HashSet<Guid> containedIn = ConvertUntypedCollectionToTypedHashSet<Guid>(untypedResults);
+                        containsMethod = typeof(HashSet<Guid>).GetMethod("Contains", new Type[] { typeof(Guid) });
+                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                    }
+                    break;
+
+                case "string":
+                case "String":
+                    {
+                        HashSet<string> containedIn = ConvertUntypedCollectionToTypedHashSet<string>(untypedResults);
+                        containsMethod = typeof(HashSet<string>).GetMethod("Contains", new Type[] { typeof(string) });
+                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                    }
+                    break;
+
+                case "Int32":
+                    {
+                        HashSet<int> containedIn = ConvertUntypedCollectionToTypedHashSet<int>(untypedResults);
+                        containsMethod = typeof(HashSet<int>).GetMethod("Contains", new Type[] { typeof(int) });
+                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                    }
+                    break;
+
+                case "Int64":
+                    {
+                        HashSet<Int64> containedIn = ConvertUntypedCollectionToTypedHashSet<Int64>(untypedResults);
+                        containsMethod = typeof(HashSet<Int64>).GetMethod("Contains", new Type[] { typeof(Int64) });
+                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                    }
+                    break;
+
+                case "Int16":
+                    {
+                        HashSet<Int16> containedIn = ConvertUntypedCollectionToTypedHashSet<Int16>(untypedResults);
+                        containsMethod = typeof(HashSet<Int16>).GetMethod("Contains", new Type[] { typeof(Int16) });
+                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                    }
+                    break;
+
+                default:
+                    throw new FullTextQueryException("unsupported primary key type " + keyColumnTypes[0].Name + " for " + tableName);
+                    break;
+            }
+
+            MethodCallExpression conditionResult = Expression.Call(typeof(Queryable), "Where", new[] { queryableDbSet.ElementType }, queryableDbSet.Expression, lambdaExpression);
+            return queryableDbSet.Provider.CreateQuery<TEntity>(conditionResult);
         }
-
-        /// <summary>
-        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
-        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search. 
-        /// </summary>
-        /// <typeparam name="TEntity"></typeparam>
-        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
-        /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for. 
-        /// It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual. 
-        /// </summary>
-        /// <typeparam name="TEntity"></typeparam>
-        / /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
-        /// <returns></returns>
-        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
-        {
-            throw new NotImplementedException();
-        }
-
-
 
         /// <summary>
 		/// Gets a column name suitable for naming constraints
-		/// and indices, not actually validated 
+		/// and indices, not actually validated
 		/// </summary>
 		/// <param name="columnProp"></param>
 		/// <returns></returns>
-		public static string GetSimpleColumnName(System.Reflection.PropertyInfo columnProp)
+		private static string GetSimpleColumnName(PropertyInfo columnProp)
         {
             Type columnAttribute = typeof(ColumnAttribute);
             ColumnAttribute columnNameAttribute = columnProp.GetCustomAttributes(columnAttribute, false).FirstOrDefault() as ColumnAttribute;
@@ -115,11 +240,11 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
-		/// Gets the name a single key of an Entity 
+		/// Gets the name a single key of an Entity
 		/// </summary>
 		/// <param name="tableType"></param>
 		/// <returns></returns>
-		static string[] GetKeyColumnNamesAndTypes(Type tableType, out Type[] columnTypes)
+		private static string[] GetKeyColumnNamesAndTypes(Type tableType, out Type[] columnTypes)
         {
             List<string> returnValue = new List<string>();
             List<Type> keyTypes = new List<Type>();
@@ -133,27 +258,84 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             return returnValue.ToArray();
         }
 
-
         /// <summary>
-        /// checks for at least one full text attribute
+        /// Gets the name a single key of an Entity
         /// </summary>
         /// <param name="tableType"></param>
         /// <returns></returns>
-        static bool HasFullTextAttribute(Type tableType)
+        private static string[] GetFullTextColumnNames(Type tableType)
         {
-            bool returnValue = false;
-            foreach (PropertyInfo pInfo in tableType.GetProperties())
+            List<string> returnValue = new List<string>();
+            List<Type> keyTypes = new List<Type>();
+            var keyColumns = tableType.GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(FullTextAttribute))).ToArray();
+            foreach (PropertyInfo columnInfo in keyColumns)
             {
-                FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
-                if (null != ftAttribute)
-                {
-                    returnValue = true;
-                    break;
-                }
+                returnValue.Add(GetSimpleColumnName(columnInfo));
+                keyTypes.Add(columnInfo.PropertyType);
             }
 
+            return returnValue.ToArray();
+        }
+
+        /// <summary>
+		/// convert generic object collection to a typed collection
+		/// this only works with primitives or things with explicit
+		/// conversion operators
+		/// </summary>
+		/// <typeparam name="T">type of objects in the untypedList</typeparam>
+		/// <param name="untypedList">collection of untyped objects</param>
+		/// <returns>Typed collection</returns>
+		private static HashSet<T> ConvertUntypedCollectionToTypedHashSet<T>(ArrayList untypedList)
+        {
+            HashSet<T> returnValue = new HashSet<T>();
+            foreach (object untypedObject in untypedList)
+            {
+                returnValue.Add((T)untypedObject);
+            }
+            return returnValue;
+        }
+
+        /// <summary>
+        /// Process the search
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <param name="tableName"></param>
+        /// <param name="primaryKeyColumnName"></param>
+        /// <param name="searchText"></param>
+        /// <param name="columnNames"></param>
+        /// <param name="useContains"></param>
+        /// <returns></returns>
+        private static ArrayList ExecuteFullTextSearch(DbContext dbCtx, string tableName, string primaryKeyColumnName, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion)
+        {
+            ArrayList returnValue = new ArrayList();
+            string columnNameText = "*";
+            if (null != columnNames && columnNames.Length > 0 && columnNames[0].Trim() != "*")
+            {
+                columnNameText = string.Join(",", columnNames);
+            }
+            string commandMod = "IN NATURAL LANGUAGE MODE";
+            if (booleanMode)
+            {
+                commandMod = "IN BOOLEAN MODE";
+            }
+            if (queryExpansion)
+            {
+                commandMod = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION";
+            }
+            searchText = searchText.Trim(new char[] { '\'', ' ' });
+            string sqlQuery = string.Format("SELECT {0} MATCH ({1}) AGAINST ('{2}') FROM {3} {4};", primaryKeyColumnName, columnNameText, searchText, tableName, commandMod);
+            using (var dataReader = dbCtx.Database.ExecuteSqlQuery(sqlQuery))
+            {
+                System.Data.Common.DbDataReader dbDataReader = dataReader.DbDataReader;
+                if (null != dbDataReader)
+                {
+                    while (dbDataReader.Read())
+                    {
+                        returnValue.Add(dbDataReader[0]);
+                    }
+                }
+            }
             return returnValue;
         }
     }
 }
-

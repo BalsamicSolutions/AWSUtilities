@@ -10,11 +10,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BalsamicSolutions.AWSUtilities.Extensions
 {
@@ -276,6 +279,81 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             optionsBuilder.UseMySQL(connectionString, optAct => optAct.ExecutionStrategy(exStg => new AuroraExecutionStrategy(dbCtx)));
             return optionsBuilder;
+        }
+
+        /// <summary>
+        /// ExecuteSqlCommand
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <returns></returns>
+        public static int ExecuteSqlCommand(this DbContext dbCtx, string sqlText)
+        {
+            return dbCtx.Database.ExecuteSqlCommand(sqlText, Array.Empty<object>());
+        }
+
+        /// <summary>
+        /// ExecuteSqlCommand
+        /// </summary>
+        /// <param name="dbCtx"></param>
+        /// <returns></returns>
+        public static int ExecuteSqlCommand(this DbContext dbCtx, string sqlText, params object[] parameters)
+        {
+            return dbCtx.Database.ExecuteSqlCommand(sqlText, parameters);
+        }
+
+        /// <summary>
+        /// execute sql and return data reader
+        /// </summary>
+        /// <param name="databaseFacade"></param>
+        /// <param name="sql"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
+        public static async Task<RelationalDataReader> ExecuteSqlQueryAsync(this DatabaseFacade databaseFacade,
+                                                            string sql,
+                                                            CancellationToken cancellationToken = default(CancellationToken),
+                                                            params object[] parameters)
+        {
+            IConcurrencyDetector concurrencyDetector = databaseFacade.GetService<IConcurrencyDetector>();
+
+            using (concurrencyDetector.EnterCriticalSection())
+            {
+                RawSqlCommand rawSqlCommand = databaseFacade
+                    .GetService<IRawSqlCommandBuilder>()
+                    .Build(sql, parameters);
+
+                return await rawSqlCommand
+                    .RelationalCommand
+                    .ExecuteReaderAsync(
+                        databaseFacade.GetService<IRelationalConnection>(),
+                        parameterValues: rawSqlCommand.ParameterValues,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// execute sql and return data reader
+        /// </summary>
+        /// <param name="databaseFacade"></param>
+        /// <param name="sql"></param>
+        /// <param name="parameters"></param>
+        /// <returns></returns>
+        public static RelationalDataReader ExecuteSqlQuery(this DatabaseFacade databaseFacade, string sql, params object[] parameters)
+        {
+            IConcurrencyDetector concurrencyDetector = databaseFacade.GetService<IConcurrencyDetector>();
+
+            using (concurrencyDetector.EnterCriticalSection())
+            {
+                RawSqlCommand rawSqlCommand = databaseFacade
+                    .GetService<IRawSqlCommandBuilder>()
+                    .Build(sql, parameters);
+
+                return rawSqlCommand
+                    .RelationalCommand
+                    .ExecuteReader(
+                        databaseFacade.GetService<IRelationalConnection>(),
+                        parameterValues: rawSqlCommand.ParameterValues);
+            }
         }
     }
 }
