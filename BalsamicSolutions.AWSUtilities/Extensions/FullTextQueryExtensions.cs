@@ -42,25 +42,13 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText"></param>
+        /// <param name="orderByScore"></param>
         /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false);
-        }
-
-        /// <summary>
-        /// A natural language search interprets the search string as a phrase in natural human language
-        /// </summary>
-        /// <typeparam name="TEntity"></typeparam>
-        /// <param name="thisDbSet"></param>
-        /// <param name="searchText"></param>
-        /// <param name="columnNames"></param>
-        /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
-        {
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false, orderByScore);
         }
 
         /// <summary>
@@ -70,26 +58,13 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText"></param>
+        /// <param name="orderByScore"></param>
         /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true);
-        }
-
-        /// <summary>
-        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
-        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
-        /// </summary>
-        /// <typeparam name="TEntity"></typeparam>
-        /// <param name="thisDbSet"></param>
-        /// <param name="searchText"></param>
-        /// <param name="columnNames"></param>
-        /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
-        {
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true, orderByScore);
         }
 
         /// <summary>
@@ -99,26 +74,13 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText"></param>
+        /// <param name="orderByScore"></param>
         /// <returns></returns>
-        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false);
-        }
-
-        /// <summary>
-        /// A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for.
-        /// It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual.
-        /// </summary>
-        /// <typeparam name="TEntity"></typeparam>
-        /// <param name="thisDbSet"></param>
-        /// <param name="searchText"></param>
-        /// <param name="columnNames"></param>
-        /// <returns></returns>
-        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames) where TEntity : class
-        {
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false);
+            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false, orderByScore);
         }
 
         /// <summary>
@@ -128,13 +90,13 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText"></param>
         /// <returns></returns>
-        private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion) where TEntity : class
+        private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             IQueryable<TEntity> queryableDbSet = thisDbSet as IQueryable<TEntity>;
             DbContext dbCtx = thisDbSet.GetDbContext<TEntity>();
             string tableName = dbCtx.GetActualTableName(entityType);
-            string indexName = dbCtx.GetFullTextIndexName(entityType);
+
             string[] entityKeyNames = GetKeyColumnNamesAndTypes(entityType, out Type[] keyColumnTypes);
             if (entityKeyNames.Length == 0 || entityKeyNames.Length > 1)
             {
@@ -149,7 +111,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             //that match the query and convert this to an Queryable expression that finds any
             //additional clauses in a List of those key values
             //Now get the untyped collection of results from the query
-            ArrayList untypedResults = ExecuteFullTextSearch(dbCtx, tableName, entityKeyNames[0], searchText, columnNames, booleanMode, queryExpansion);
+            ArrayList untypedResults = ExecuteFullTextSearch(dbCtx, tableName, entityKeyNames[0], searchText, columnNames, booleanMode, queryExpansion, orderByScore);
 
             //Ok get the matching TEntity parameter
             ParameterExpression parameterExpression = Expression.Parameter(queryableDbSet.ElementType, "p");
@@ -162,57 +124,44 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             LambdaExpression lambdaExpression = null;
             MethodInfo containsMethod = null;
 
-            switch (keyColumnTypes[0].Name)
+            if (keyColumnTypes[0] == typeof(Guid))
             {
-                case "Guid":
-                    {
-                        HashSet<Guid> containedIn = ConvertUntypedCollectionToTypedHashSet<Guid>(untypedResults);
-                        containsMethod = typeof(HashSet<Guid>).GetMethod("Contains", new Type[] { typeof(Guid) });
-                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
-                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
-                    }
-                    break;
-
-                case "string":
-                case "String":
-                    {
-                        HashSet<string> containedIn = ConvertUntypedCollectionToTypedHashSet<string>(untypedResults);
-                        containsMethod = typeof(HashSet<string>).GetMethod("Contains", new Type[] { typeof(string) });
-                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
-                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
-                    }
-                    break;
-
-                case "Int32":
-                    {
-                        HashSet<int> containedIn = ConvertUntypedCollectionToTypedHashSet<int>(untypedResults);
-                        containsMethod = typeof(HashSet<int>).GetMethod("Contains", new Type[] { typeof(int) });
-                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
-                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
-                    }
-                    break;
-
-                case "Int64":
-                    {
-                        HashSet<Int64> containedIn = ConvertUntypedCollectionToTypedHashSet<Int64>(untypedResults);
-                        containsMethod = typeof(HashSet<Int64>).GetMethod("Contains", new Type[] { typeof(Int64) });
-                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
-                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
-                    }
-                    break;
-
-                case "Int16":
-                    {
-                        HashSet<Int16> containedIn = ConvertUntypedCollectionToTypedHashSet<Int16>(untypedResults);
-                        containsMethod = typeof(HashSet<Int16>).GetMethod("Contains", new Type[] { typeof(Int16) });
-                        comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
-                        lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
-                    }
-                    break;
-
-                default:
-                    throw new FullTextQueryException("unsupported primary key type " + keyColumnTypes[0].Name + " for " + tableName);
-                    break;
+                HashSet<Guid> containedIn = ConvertUntypedCollectionToTypedHashSet<Guid>(untypedResults);
+                containsMethod = typeof(HashSet<Guid>).GetMethod("Contains", new Type[] { typeof(Guid) });
+                comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+            }
+            else if (keyColumnTypes[0] == typeof(string))
+            {
+                HashSet<string> containedIn = ConvertUntypedCollectionToTypedHashSet<string>(untypedResults);
+                containsMethod = typeof(HashSet<string>).GetMethod("Contains", new Type[] { typeof(string) });
+                comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+            }
+            else if (keyColumnTypes[0] == typeof(int))
+            {
+                HashSet<int> containedIn = ConvertUntypedCollectionToTypedHashSet<int>(untypedResults);
+                containsMethod = typeof(HashSet<int>).GetMethod("Contains", new Type[] { typeof(int) });
+                comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+            }
+            else if (keyColumnTypes[0] == typeof(Int64))
+            {
+                HashSet<Int64> containedIn = ConvertUntypedCollectionToTypedHashSet<Int64>(untypedResults);
+                containsMethod = typeof(HashSet<Int64>).GetMethod("Contains", new Type[] { typeof(Int64) });
+                comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+            }
+            else if (keyColumnTypes[0] == typeof(Int16))
+            {
+                HashSet<Int16> containedIn = ConvertUntypedCollectionToTypedHashSet<Int16>(untypedResults);
+                containsMethod = typeof(HashSet<Int16>).GetMethod("Contains", new Type[] { typeof(Int16) });
+                comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
+                lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+            }
+            else
+            {
+                throw new FullTextQueryException("unsupported primary key type " + keyColumnTypes[0].Name + " for " + tableName);
             }
 
             MethodCallExpression conditionResult = Expression.Call(typeof(Queryable), "Where", new[] { queryableDbSet.ElementType }, queryableDbSet.Expression, lambdaExpression);
@@ -305,14 +254,10 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <param name="columnNames"></param>
         /// <param name="useContains"></param>
         /// <returns></returns>
-        private static ArrayList ExecuteFullTextSearch(DbContext dbCtx, string tableName, string primaryKeyColumnName, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion)
+        private static ArrayList ExecuteFullTextSearch(DbContext dbCtx, string tableName, string primaryKeyColumnName, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore)
         {
             ArrayList returnValue = new ArrayList();
-            string columnNameText = "*";
-            if (null != columnNames && columnNames.Length > 0 && columnNames[0].Trim() != "*")
-            {
-                columnNameText = string.Join(",", columnNames);
-            }
+            string columnNameText = string.Join(",", columnNames); ;
             string commandMod = "IN NATURAL LANGUAGE MODE";
             if (booleanMode)
             {
@@ -323,7 +268,16 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 commandMod = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION";
             }
             searchText = searchText.Trim(new char[] { '\'', ' ' });
-            string sqlQuery = string.Format("SELECT {0} MATCH ({1}) AGAINST ('{2}') FROM {3} {4};", primaryKeyColumnName, columnNameText, searchText, tableName, commandMod);
+            string matchText = string.Format("MATCH ({0}) AGAINST ('{1}' {2})", columnNameText, searchText, commandMod);
+            string sqlQuery = null;
+            if (orderByScore)
+            {
+                sqlQuery = string.Format("SELECT {0}, {2} AS score FROM {1} WHERE {2} ORDER BY score DESC;", primaryKeyColumnName, tableName, matchText);
+            }
+            else
+            {
+                sqlQuery = string.Format("SELECT {0} FROM {1} WHERE {2};", primaryKeyColumnName, tableName, matchText);
+            }
             using (var dataReader = dbCtx.Database.ExecuteSqlQuery(sqlQuery))
             {
                 System.Data.Common.DbDataReader dbDataReader = dataReader.DbDataReader;
