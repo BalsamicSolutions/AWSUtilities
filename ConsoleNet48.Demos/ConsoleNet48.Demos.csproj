@@ -32,6 +32,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>BalsamicSolutionsIcon.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -47,7 +50,23 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="BalsamicSolutionsIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BalsamicSolutions.AWSUtilities\BalsamicSolutions.AWSUtilities.csproj">
+      <Project>{c7ec3624-36e8-4312-8235-47c7d050eedc}</Project>
+      <Name>BalsamicSolutions.AWSUtilities</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Demo.Data\Demo.Data.csproj">
+      <Project>{499bf68e-42b9-4861-bc14-2c1e27748eb4}</Project>
+      <Name>Demo.Data</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

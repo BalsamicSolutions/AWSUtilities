@@ -101,7 +101,6 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             return returnValue;
         }
 
-
         /// <summary>
         /// validates the MySQL Fulltext configuration for the entities in
         /// the provided dbcontext. Intended to be applied during a seed
@@ -115,7 +114,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             string databaseName = dbCtx.DatabaseName();
             Dictionary<string, string> dbDescription = DescribeAllFullTextIndices(dbCtx, databaseName);
             Dictionary<string, string> modelDescription = DescribeAllFullTextIndices(dbCtx);
-            if (!FullTextDescriptionsAreTheSame(dbDescription, modelDescription))
+            if (!DictionariesAreTheSame(dbDescription, modelDescription, false))
             {
                 CreateFullTextIndices(dbCtx);
             }
@@ -152,7 +151,6 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                         tableMap[columnName] = ftAttribute;
                     }
                 }
-
             }
 
             DropFullTextIndices(dbCtx, databaseName);
@@ -184,13 +182,12 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
 
         /// <summary>
         /// compares DB and Model descriptions
-        /// NOTE: does not consider column order
         /// </summary>
         /// <param name="desOne"></param>
         /// <param name=""></param>
         /// <param name=""></param>
         /// <returns></returns>
-        static bool FullTextDescriptionsAreTheSame(Dictionary<string, string> desOne, Dictionary<string, string> desTwo)
+        private static bool DictionariesAreTheSame(Dictionary<string, string> desOne, Dictionary<string, string> desTwo, bool ignoreOrder)
         {
             bool returnValue = false;
             if (desOne.Count == desTwo.Count)
@@ -205,18 +202,38 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                     }
                     if (returnValue)
                     {
-                        HashSet<string> namesOne = new HashSet<string>(colNamesOne.Split(','),StringComparer.OrdinalIgnoreCase);
-                        HashSet<string> namesTwo = new HashSet<string>(colNamesTwo.Split(','),StringComparer.OrdinalIgnoreCase);
-                        returnValue = namesOne.Count == namesTwo.Count;
-                        if (returnValue)
+                        if (ignoreOrder)
                         {
-                            foreach (string nameOne in namesOne)
+                            HashSet<string> namesOne = new HashSet<string>(colNamesOne.Split(','), StringComparer.OrdinalIgnoreCase);
+                            HashSet<string> namesTwo = new HashSet<string>(colNamesTwo.Split(','), StringComparer.OrdinalIgnoreCase);
+                            returnValue = namesOne.Count == namesTwo.Count;
+                            if (returnValue)
                             {
-                                if (!namesTwo.Contains(nameOne))
+                                foreach (string nameOne in namesOne)
                                 {
-                                    returnValue = false;
+                                    if (!namesTwo.Contains(nameOne))
+                                    {
+                                        returnValue = false;
+                                    }
+                                    if (!returnValue) break;
                                 }
-                                if (!returnValue) break;
+                            }
+                        }
+                        else
+                        {
+                            string[] namesOne = colNamesOne.Split(',');
+                            string[] namesTwo = colNamesTwo.Split(',');
+                            returnValue = namesOne.Length == namesTwo.Length;
+                            if (returnValue)
+                            {
+                                for (int idx = 0; idx < namesOne.Length; idx++)
+                                {
+                                    if (!namesOne[idx].CaseInsensitiveEquals(namesTwo[idx]))
+                                    {
+                                        returnValue = false;
+                                    }
+                                    if (!returnValue) break;
+                                }
                             }
                         }
                     }
@@ -227,7 +244,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
-        /// creates a description of all table/full text indices
+        /// creates a description of all table/full text indices from the model
         /// </summary>
         /// <param name="dbCtx"></param>
         /// <param name="datbaseName"></param>
@@ -241,7 +258,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
                 string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
                 string keyName = tableName + ":" + indexName;
-                List<string> columnNames = new List<string>();
+                Dictionary<string, FullTextAttribute> fullTextMap = new Dictionary<string, FullTextAttribute>(StringComparer.OrdinalIgnoreCase);
                 foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
                 {
                     FullTextAttribute ftAttribute = pInfo.GetCustomAttributes<FullTextAttribute>().FirstOrDefault() as FullTextAttribute;
@@ -250,18 +267,17 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                         string columnName = pInfo.Name;
                         ColumnAttribute columnNameAttribute = pInfo.GetCustomAttributes<ColumnAttribute>().FirstOrDefault() as ColumnAttribute;
                         if (null != columnNameAttribute && !columnNameAttribute.Name.IsNullOrEmpty()) columnName = columnNameAttribute.Name;
-                        columnNames.Add(columnName);
+                        fullTextMap[columnName] = ftAttribute;
                     }
                 }
-                if (columnNames.Count > 0)
+                if (fullTextMap.Count > 0)
                 {
+                    List<string> columnNames = SortByColumnOrder(fullTextMap);
                     returnValue[keyName] = string.Join(",", columnNames);
                 }
-
             }
             return returnValue;
         }
-
 
         /// <summary>
         /// creates a description of all table/full text indices from the database
@@ -272,7 +288,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         private static Dictionary<string, string> DescribeAllFullTextIndices(DbContext dbCtx, string datbaseName)
         {
             Dictionary<string, string> returnValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            string sqlQuery = $"SELECT index_name,table_name, group_concat(distinct column_name) FROM information_Schema.STATISTICS WHERE table_schema = '{datbaseName}' AND index_type = 'FULLTEXT';";
+            string sqlQuery = $"SELECT index_name,table_name, column_name FROM information_Schema.STATISTICS WHERE table_schema = '{datbaseName}' AND index_type = 'FULLTEXT' ORDER BY index_name;";
             using (var dataReader = dbCtx.Database.ExecuteSqlQuery(sqlQuery))
             {
                 System.Data.Common.DbDataReader dbDataReader = dataReader.DbDataReader;
@@ -280,13 +296,20 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 {
                     while (dbDataReader.Read())
                     {
-                        object indexName = dbDataReader[0];
-                        object tableName = dbDataReader[1];
-                        object columnNames = dbDataReader[2];
-                        if (null != indexName && null != tableName)
+                        string indexName = dbDataReader[0].ToString();
+                        string tableName = dbDataReader[1].ToString();
+                        string columnName = dbDataReader[2].ToString();
+                        if (!indexName.IsNullOrWhiteSpace() && !tableName.IsNullOrWhiteSpace())
                         {
                             string keyName = $"{tableName}:{indexName}";
-                            returnValue[keyName] = columnNames.ToString();
+                            if (returnValue.TryGetValue(keyName, out string columnNames))
+                            {
+                                returnValue[keyName] = columnNames + "," + columnName;
+                            }
+                            else
+                            {
+                                returnValue[keyName] = columnName;
+                            }
                         }
                     }
                 }
@@ -303,7 +326,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         private static List<string> GenerateDropCommandsForAllFullTextIndices(DbContext dbCtx, string datbaseName)
         {
             List<string> returnValue = new List<string>();
-            string sqlQuery = $"SELECT index_name,table_name FROM information_Schema.STATISTICS WHERE table_schema = '{datbaseName}' AND index_type = 'FULLTEXT';";
+            string sqlQuery = $"SELECT distinct(index_name),table_name FROM information_Schema.STATISTICS WHERE table_schema = '{datbaseName}' AND index_type = 'FULLTEXT';";
             using (var dataReader = dbCtx.Database.ExecuteSqlQuery(sqlQuery))
             {
                 System.Data.Common.DbDataReader dbDataReader = dataReader.DbDataReader;

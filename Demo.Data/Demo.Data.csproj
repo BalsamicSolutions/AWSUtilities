@@ -1,22 +1,25 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>Robert Ginsburg, Curtis Ruppe</Authors>
-    <Company>Balsamic Solutions</Company>
-    <Description>AWS Utilities includeing support for RDS IAM authentication, generic queue dispatching, auto scaling group monitoring and other utilities</Description>
-    <Copyright>Balsamic Solutions, LLC</Copyright>
-    <PackageProjectUrl>https://github.com/BalsamicSolutions/AWSUtilities</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/BalsamicSolutions/AWSUtilities</RepositoryUrl>
-    <RepositoryType>GIT</RepositoryType>
-    <PackageTags>AWS RDS IAM EC2 ASG AURORA</PackageTags>
-    <PackageReleaseNotes>Initial release from intenral library</PackageReleaseNotes>
-    <PackageIcon>BalsamicSolutionsIcon.ico</PackageIcon>
-    <PackageIconUrl />
     <ApplicationIcon>BalsamicSolutionsIcon.ico</ApplicationIcon>
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Testing\dist.all.last.txt" />
+    <None Remove="Testing\dist.female.first.txt" />
+    <None Remove="Testing\dist.male.first.txt" />
+    <None Remove="Testing\Sentences.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Testing\dist.all.last.txt" />
+    <EmbeddedResource Include="Testing\dist.female.first.txt" />
+    <EmbeddedResource Include="Testing\dist.male.first.txt" />
+    <EmbeddedResource Include="Testing\Sentences.txt" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Amazon.Lambda.CloudWatchEvents" Version="1.0.0" />
     <PackageReference Include="Amazon.Lambda.S3Events" Version="1.1.0" />
@@ -62,5 +65,8 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.7.0" />
     <PackageReference Include="Ubiety.Dns.Core" Version="2.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BalsamicSolutions.AWSUtilities\BalsamicSolutions.AWSUtilities.csproj" />
   </ItemGroup>
 </Project>

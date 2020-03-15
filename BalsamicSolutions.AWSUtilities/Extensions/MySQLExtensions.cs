@@ -39,7 +39,12 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             string connectionString = dbCtx.GetConnectionString();
             MySqlConnectionStringBuilder mySqlCSBuilder = new MySqlConnectionStringBuilder(connectionString);
-            return mySqlCSBuilder.Database;
+            string returnValue= mySqlCSBuilder.Database;
+            if(dbCtx.MySqlLowerCaseTableNames())
+            {
+                returnValue=returnValue.ToLowerInvariant();
+            }
+            return returnValue;
         }
 
         /// <summary>

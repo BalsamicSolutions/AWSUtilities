@@ -52,7 +52,7 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations
                 if (null != uCaseAttribute)
                 {
                     CultureInfo cInfo = CultureInfo.CurrentCulture;
-                    if (null == uCaseAttribute.CultureName
+                    if (string.IsNullOrWhiteSpace( uCaseAttribute.CultureName)
                             || uCaseAttribute.CultureName.Equals("Invariant", StringComparison.OrdinalIgnoreCase))
                     {
                         cInfo = CultureInfo.InvariantCulture;

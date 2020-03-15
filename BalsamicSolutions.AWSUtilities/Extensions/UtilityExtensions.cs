@@ -73,6 +73,34 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
+		/// shorten a string to a provided maximum  length
+		/// </summary>
+		/// <param name="thisStr"></param>
+		/// <param name="maxLength"></param>
+		/// <returns></returns>
+		public static string TrimTo(this string thisStr, int maxLength, bool addEllipsis = false)
+		{
+			if (string.IsNullOrEmpty(thisStr))
+			{
+				return string.Empty;
+			}
+			if (addEllipsis)
+			{
+				maxLength -= 3;
+			}
+			if (thisStr.Length <= maxLength)
+			{
+				return thisStr;
+			}
+			string returnValue = thisStr.Substring(0, maxLength);
+			if (addEllipsis)
+			{
+				returnValue += "...";
+			}
+			return returnValue;
+		}
+
+        /// <summary>
         /// Deserializes json text to a typed object
         /// </summary>
         /// <typeparam name="T"></typeparam>
