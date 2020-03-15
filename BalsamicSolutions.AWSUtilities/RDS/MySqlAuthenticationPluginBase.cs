@@ -1,4 +1,9 @@
-﻿using MySql.Data.MySqlClient.Authentication;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using MySql.Data.MySqlClient.Authentication;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -76,7 +81,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         {
             const string RDSSuffix = ".rds.amazonaws.com";
             string returnValue = hostAddress.ToLowerInvariant();
-            if (!returnValue.EndsWith(RDSSuffix) && hostAddress.IndexOf('.')>-1)
+            if (!returnValue.EndsWith(RDSSuffix) && hostAddress.IndexOf('.') > -1)
             {
                 string cName = GetCNameOfHostOrNull(hostAddress);
                 if (!string.IsNullOrEmpty(cName))

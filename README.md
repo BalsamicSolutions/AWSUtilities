@@ -23,7 +23,14 @@ no longer needs to contain a password. It is a bit tricky to configure (see note
 This is a collection of classes supporting EntityFramework 2.X (3.1 coming soon) that specifically target Aurora RDS. This includes a
 cloud Execution Strategy for Aurora, a MySql/Aurora index attribute, a full text attribute (for enabling FULLTEXT), an UpperCase attribute for
 forcing strings to upper case. There are corresponding query extensions (for FULLTEXT) and model builder extensions (for intalling attributes)
-as well as a DbContext base class that handles all the implementation. 
+as well as a DbContext base class that handles the implementation if you dont want to do it yourself
+
+##ConsoleCore.Demos
+This is a console application with examples of each of the techniques. In order to demonstrate the EF attributes you need access to a MySQL
+or Aurora server in MySQL mode. Update the connectionstring in the appsettings.json file to point to that server. If you want to test the IAM
+authentication then you need to be running on an EC2 instance with IAM permissions (https://aws.amazon.com/premiumsupport/knowledge-center/users-connect-rds-iam/)
+in this case yuou still need to include the username in the connection string but a password is not needed. Set the appsettings.json file
+IAM role accordingly.
 
 
 

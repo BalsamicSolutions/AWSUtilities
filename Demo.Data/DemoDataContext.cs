@@ -28,7 +28,7 @@ namespace Demo.Data
     /// </summary>
     public class DemoDataContext : DbContextBase
     {
-
+ 
         public DbSet<Contact> Contacts { get; set; }
         public DbSet<NoteWithFulltext> NotesWithFulltext { get; set; }
         public DbSet<NoteWithoutFulltext> NotesWithoutFullText { get; set; }
@@ -39,6 +39,7 @@ namespace Demo.Data
         /// <param name="optionsBuilder"></param>
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
+            
             if (!optionsBuilder.IsConfigured)
             {
                 // obviously get this from your configuration tools

@@ -16,9 +16,18 @@ namespace ConsoleCore.Demos
 {
     internal class Program
     {
+        //TODO : show a dialog with info
+        //       about how to configure the environment
+        //       option 1 is provision db
+        //       option 2 is full text examples
+        //       option 3 is iam access to full text examples
+        //       option 4 is sqs wait
+        //       option 5 is sqs wait in asg with self terminate
+
         private static void Main(string[] args)
         {
-            EntityFrameworkExamples.ExampleFullTextQueries();
+            //EntityFrameworkExamples.ExampleFullTextQueries();
+
             Console.WriteLine("Press X to exit...");
             char exitChar = Console.ReadKey().KeyChar;
             while (exitChar != 'X' && exitChar != 'x')

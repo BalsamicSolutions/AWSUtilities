@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using BalsamicSolutions.AWSUtilities.RDS;
 
 namespace BalsamicSolutions.AWSUtilities.EntityFramework
 {
@@ -26,10 +27,26 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
     /// </summary>
     public class DbContextBase : DbContext
     {
+        private static bool _IamChecked = false;
+        private static object _StaticLock = new object();
+
+        private IConfigurationRoot _Configuration = null;
+
+        public DbContextBase()
+             : base()
+        {
+            InstallIAMHandler();
+        }
+
+        public DbContextBase(DbContextOptions options)
+               : base(options)
+        {
+             InstallIAMHandler();
+        }
+
         /// <summary>
         /// convient wrapper for appsettings.json
         /// </summary>
-        IConfigurationRoot _Configuration = null;
         protected IConfigurationRoot Configuration
         {
             get
@@ -46,6 +63,31 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
             }
         }
 
+        /// <summary>
+        /// Installs RDS IAM support handler
+        /// </summary>
+        protected void InstallIAMHandler()
+        {
+            if (!_IamChecked)
+            {
+                lock (_StaticLock)
+                {
+                    if (!_IamChecked)
+                    {
+                        string iamRole = Configuration.GetValue<string>("appSettings:RDSIAMMode");
+                        if (iamRole.CaseInsensitiveEquals("User"))
+                        {
+                            MySqlAuthenticationPluginBase.RegisterUserPlugin();
+                        }
+                        else if (iamRole.CaseInsensitiveEquals("Role"))
+                        {
+                            MySqlAuthenticationPluginBase.RegisterRolePlugin();
+                        }
+                        _IamChecked = true;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// wrapper for migrations, that also activates
@@ -89,7 +131,7 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         }
 
         /// <summary>
-        /// collect all entries that are new or 
+        /// collect all entries that are new or
         /// have been changed
         /// </summary>
         /// <returns></returns>

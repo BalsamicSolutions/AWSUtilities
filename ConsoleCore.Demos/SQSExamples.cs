@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Microsoft.Extensions.Hosting;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace ConsoleCore.Demos
 {
-    class SQSExamples
+    public class SQSExamples:IHostedService
     {
     }
 }
