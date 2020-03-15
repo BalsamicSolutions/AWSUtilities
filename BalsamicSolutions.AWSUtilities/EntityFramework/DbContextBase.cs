@@ -45,7 +45,7 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
                 return _Configuration;
             }
         }
- 
+
 
         /// <summary>
         /// wrapper for migrations, that also activates
@@ -57,8 +57,8 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
             if (migrationList.Count() > 0)
             {
                 this.Database.Migrate();
-                this.EnsureFullTextIndices();
             }
+            this.EnsureFullTextIndices();
         }
 
         /// <summary>
@@ -89,7 +89,8 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         }
 
         /// <summary>
-        /// collect all entries
+        /// collect all entries that are new or 
+        /// have been changed
         /// </summary>
         /// <returns></returns>
         private List<EntityEntry> CollectChangedAndNewObjectReferences()
@@ -123,11 +124,11 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         /// <param name="acceptAllChangesOnSuccess"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        public async override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
             List<EntityEntry> entityReferences = CollectChangedAndNewObjectReferences();
             ToUpperCase(entityReferences);
-            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }
