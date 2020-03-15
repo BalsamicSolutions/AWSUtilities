@@ -15,6 +15,7 @@ using System.Data;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace BalsamicSolutions.AWSUtilities.EntityFramework
 {
@@ -25,7 +26,26 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
     /// </summary>
     public class DbContextBase : DbContext
     {
+        /// <summary>
+        /// convient wrapper for appsettings.json
+        /// </summary>
+        IConfigurationRoot _Configuration = null;
+        protected IConfigurationRoot Configuration
+        {
+            get
+            {
+                if (null == _Configuration)
+                {
+                    IConfigurationBuilder builder = new ConfigurationBuilder()
+                               .SetBasePath(System.IO.Directory.GetCurrentDirectory())
+                               .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
+                    _Configuration = builder.Build();
+                }
+                return _Configuration;
+            }
+        }
+ 
 
         /// <summary>
         /// wrapper for migrations, that also activates

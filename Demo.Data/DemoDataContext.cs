@@ -17,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BalsamicSolutions.AWSUtilities.EntityFramework;
 using BalsamicSolutions.AWSUtilities.RDS;
+using Microsoft.Extensions.Configuration;
 
 namespace Demo.Data
 {
@@ -41,7 +42,7 @@ namespace Demo.Data
             if (!optionsBuilder.IsConfigured)
             {
                 // obviously get this from your configuration tools
-                string connectionString = "Server=MySqlServer;Database=demoDB;Uid=segueSA;Password=P@$w0rd!!;Allow User Variables=True;Pooling=true;SslMode=Preferred"; // get this from your configuration
+                string connectionString = Configuration.GetConnectionString("DemoData");
 
                 //UseAuroraExecutionStrategy is the same as
                 //optionsBuilder.UseMySQL(connectionString, optAct => optAct.ExecutionStrategy(exStg => new AuroraExecutionStrategy(this)));
