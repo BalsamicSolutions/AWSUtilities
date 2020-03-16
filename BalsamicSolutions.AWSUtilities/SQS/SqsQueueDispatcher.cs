@@ -480,7 +480,10 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         }
 
 
-
+        /// <summary>
+        /// implement the disposable pattern.
+        /// </summary>
+        /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
             if (!_Disposed)
@@ -500,8 +503,10 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             }
         }
 
-
-        // This code added to correctly implement the disposable pattern.
+           
+        /// <summary>
+        /// implement the disposable pattern.
+        /// </summary>
         public void Dispose()
         {
             Dispose(true);

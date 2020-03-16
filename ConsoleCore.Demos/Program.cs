@@ -25,10 +25,7 @@ namespace ConsoleCore.Demos
     {
 
         /// <summary>
-        /// refer to this link for how to operate a hosted sercvie 
-        /// https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-2.2
-        /// main entry point for .net core queue engine, almost all of the  RX
-        /// engines will be similar to this one
+        /// main entry point for .net core demos
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
