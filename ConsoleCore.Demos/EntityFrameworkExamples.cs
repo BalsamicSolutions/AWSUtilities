@@ -1,4 +1,9 @@
-﻿using BalsamicSolutions.AWSUtilities.Extensions;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using BalsamicSolutions.AWSUtilities.Extensions;
 using Demo.Data;
 using Demo.Data.Testing;
 using System;
@@ -11,7 +16,6 @@ namespace ConsoleCore.Demos
 {
     public class EntityFrameworkExamples
     {
-        
         /// <summary>
         /// some examples
         /// </summary>
@@ -42,7 +46,7 @@ namespace ConsoleCore.Demos
                 watchOne.Stop();
                 long containsElapsedMilliseconds = watchOne.ElapsedMilliseconds;
                 Console.WriteLine($"using contains found {matchOldFashioned.Count} in {watchOne.ElapsedMilliseconds} milliseconds");
-                 
+
                 decimal percentImproved = ((decimal)containsElapsedMilliseconds / (decimal)ftElapsedMilliseconds);
                 string textPercent = percentImproved.ToString("P2");
                 Console.WriteLine($"FullText is {textPercent} %  better than Contains for searching accross {totalNotes} items");
@@ -81,38 +85,41 @@ namespace ConsoleCore.Demos
         /// <summary>
         /// loads sample data into the database.
         /// </summary>
-        public static void LoadSampleData(DemoDataContext dataCtx, int numItems = 100)
+        public static void LoadSampleData(DemoDataContext dataCtx, int numItems = 1000)
         {
-            dataCtx.RemoveRange(dataCtx.Contacts.ToList());
-            dataCtx.SaveChanges();
-            dataCtx.RemoveRange(dataCtx.NotesWithoutFullText.ToList());
-            dataCtx.SaveChanges();
-            dataCtx.RemoveRange(dataCtx.NotesWithFulltext.ToList());
-            dataCtx.SaveChanges();
-            string[] emailDomains = new string[] { "gmail.com", "outlook.com", "yahoo.com", "balsamicsoftware.org" };
-            foreach (NameInfo nameInfo in RandomStuff.RandomNames(numItems, emailDomains, null, 5))
+            if (dataCtx.Contacts.Count() != numItems)
             {
-                Contact addMe = new Contact(nameInfo);
-                dataCtx.Contacts.Add(addMe);
-            }
-            dataCtx.SaveChanges();
-            for (int idx = 0; idx < numItems; idx++)
-            {
-                string noteText = RandomStuff.RandomSentance(100, 2048);
-                string noteTopic = RandomStuff.RandomSentance(50, 512);
-                NoteWithFulltext noteWith = new NoteWithFulltext
-                {
-                    Topic = noteTopic,
-                    Note = noteText
-                };
-                NoteWithoutFulltext noteWithOut = new NoteWithoutFulltext
-                {
-                    Topic = noteTopic,
-                    Note = noteText
-                };
-                dataCtx.NotesWithFulltext.Add(noteWith);
-                dataCtx.NotesWithoutFullText.Add(noteWithOut);
+                dataCtx.RemoveRange(dataCtx.Contacts.ToList());
                 dataCtx.SaveChanges();
+                dataCtx.RemoveRange(dataCtx.NotesWithoutFullText.ToList());
+                dataCtx.SaveChanges();
+                dataCtx.RemoveRange(dataCtx.NotesWithFulltext.ToList());
+                dataCtx.SaveChanges();
+                string[] emailDomains = new string[] { "gmail.com", "outlook.com", "yahoo.com", "balsamicsoftware.org" };
+                foreach (NameInfo nameInfo in RandomStuff.RandomNames(numItems, emailDomains, null, 5))
+                {
+                    Contact addMe = new Contact(nameInfo);
+                    dataCtx.Contacts.Add(addMe);
+                }
+                dataCtx.SaveChanges();
+                for (int idx = 0; idx < numItems; idx++)
+                {
+                    string noteText = RandomStuff.RandomSentance(100, 2048);
+                    string noteTopic = RandomStuff.RandomSentance(50, 512);
+                    NoteWithFulltext noteWith = new NoteWithFulltext
+                    {
+                        Topic = noteTopic,
+                        Note = noteText
+                    };
+                    NoteWithoutFulltext noteWithOut = new NoteWithoutFulltext
+                    {
+                        Topic = noteTopic,
+                        Note = noteText
+                    };
+                    dataCtx.NotesWithFulltext.Add(noteWith);
+                    dataCtx.NotesWithoutFullText.Add(noteWithOut);
+                    dataCtx.SaveChanges();
+                }
             }
         }
     }

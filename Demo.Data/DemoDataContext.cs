@@ -23,8 +23,6 @@ namespace Demo.Data
 {
     /// <summary>
     /// data context for our demos.
-    /// 
-    ///Add-Migration InitialMigration -Project Demo.Data -Context DemoDataContext -OutputDir Migrations
     /// </summary>
     public class DemoDataContext : DbContextBase
     {

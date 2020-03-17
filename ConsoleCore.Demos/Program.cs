@@ -43,7 +43,7 @@ namespace ConsoleCore.Demos
                     if (arg == "sqs") sqsDemo = true;
                     if (arg == "sqsenqueue") sqsEnqueue = true;
                     if (arg == "enqueue") sqsEnqueue = true;
-                    if (arg == "ef") sqsDemo = true;
+                    if (arg == "ef") efDemo = true;
                     if (arg == "sqsdemo") sqsDemo = true;
                     if (arg == "efdemo") efDemo = true;
                     if (arg == "ignoresslerrors")
@@ -91,7 +91,11 @@ namespace ConsoleCore.Demos
             {
                 if (efDemo)
                 {
-                    Console.WriteLine("TODO build a menu to select ef initialization and/or query examples");
+                    Console.WriteLine("Checking/Initializing demo database");
+                    EntityFrameworkExamples.InitializeSampleDatabase();
+                    Console.WriteLine("Running query examples");
+                    EntityFrameworkExamples.ExampleFullTextQueries();
+                    Console.WriteLine("Done with examples");
                 }
                 else if (sqsEnqueue)
                 {
