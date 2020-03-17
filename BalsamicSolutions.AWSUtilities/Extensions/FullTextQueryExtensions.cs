@@ -41,8 +41,8 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
-        /// <param name="orderByScore"></param>
+        /// <param name="searchText">search command</param>
+        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
         public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
@@ -57,8 +57,8 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
-        /// <param name="orderByScore"></param>
+        /// <param name="searchText">search command</param>
+        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
         public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
@@ -73,8 +73,8 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
-        /// <param name="orderByScore"></param>
+        /// <param name="searchText">search command</param>
+        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
         public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
         {
@@ -88,7 +88,8 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
-        /// <param name="searchText"></param>
+        /// <param name="searchText">search command</param>
+        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
         private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore) where TEntity : class
         {
@@ -163,8 +164,9 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             {
                 throw new FullTextQueryException("unsupported primary key type " + keyColumnTypes[0].Name + " for " + tableName);
             }
-
+          
             MethodCallExpression conditionResult = Expression.Call(typeof(Queryable), "Where", new[] { queryableDbSet.ElementType }, queryableDbSet.Expression, lambdaExpression);
+            //TODO handle the OrderByScore
             return queryableDbSet.Provider.CreateQuery<TEntity>(conditionResult);
         }
 
@@ -197,7 +199,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             List<string> returnValue = new List<string>();
             List<Type> keyTypes = new List<Type>();
-            var keyColumns = tableType.GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(KeyAttribute))).ToArray();
+            PropertyInfo[] keyColumns = tableType.GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(KeyAttribute))).ToArray();
             foreach (PropertyInfo columnInfo in keyColumns)
             {
                 returnValue.Add(GetSimpleColumnName(columnInfo));
@@ -208,7 +210,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
-        /// Gets the name a single key of an Entity
+        /// Gets the name of any properties with the FullText attribute
         /// </summary>
         /// <param name="tableType"></param>
         /// <returns></returns>
@@ -216,7 +218,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             List<string> returnValue = new List<string>();
             List<Type> keyTypes = new List<Type>();
-            var keyColumns = tableType.GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(FullTextAttribute))).ToArray();
+            PropertyInfo[] keyColumns = tableType.GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(FullTextAttribute))).ToArray();
             foreach (PropertyInfo columnInfo in keyColumns)
             {
                 returnValue.Add(GetSimpleColumnName(columnInfo));
@@ -247,12 +249,14 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <summary>
         /// Process the search
         /// </summary>
-        /// <param name="dbCtx"></param>
-        /// <param name="tableName"></param>
-        /// <param name="primaryKeyColumnName"></param>
-        /// <param name="searchText"></param>
+        /// <param name="dbCtx">EF dbContext</param>
+        /// <param name="tableName">the name of the table </param>
+        /// <param name="primaryKeyColumnName">the primary key of the table</param>
+        /// <param name="searchText">the FULLTEXT formated query</param>
         /// <param name="columnNames"></param>
-        /// <param name="useContains"></param>
+        ///<param name="booleanMode">if true process as a boolean search, otherwise its a Natural Language searc</param>
+        ///<param name="queryExpansion">If its Natural Language, also add the query expansion flag</param>
+        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
         private static ArrayList ExecuteFullTextSearch(DbContext dbCtx, string tableName, string primaryKeyColumnName, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore)
         {
