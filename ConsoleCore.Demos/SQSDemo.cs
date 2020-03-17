@@ -79,12 +79,12 @@ namespace ConsoleCore.Demos
             {
                 //to keep this real, we will randomize the delay periods, the effect is visible
                 //when  MaxConcurrency is more than 1
-                int delayMod = _RandomDelay.Next(_QueueDelayInSeconds,_QueueDelayInSeconds * 5);
+                int delayMod = _RandomDelay.Next(_QueueDelayInSeconds, _QueueDelayInSeconds * 5);
                 _SysLogger.LogInformation($"Working on message for {delayMod} seconds data: {queueData.RandomData}:{queueData.MoreRandomData}\r\n{recieptHandle}");
                 //Normally you would do work here, for our demo we just sleep a bit
                 Task waitForIt = Task.Delay(TimeSpan.FromSeconds(delayMod), _CancellationTokenSource.Token);
                 waitForIt.Wait();
-                if(!_CancellationTokenSource.IsCancellationRequested)
+                if (!_CancellationTokenSource.IsCancellationRequested)
                 {
                     returnValue = true;
                 }
@@ -98,7 +98,7 @@ namespace ConsoleCore.Demos
             {
                 _SysLogger.LogError(badThing, $"A critical error occurred during the queue callback for message {recieptHandle}");
                 //the SqsQueueDispatcher handles this so throw it again
-               throw;
+                throw;
             }
             return returnValue;
         }
@@ -117,6 +117,11 @@ namespace ConsoleCore.Demos
                 _SqsQueue.Dispose();
                 _SqsQueue = null;
                 _CancellationTokenSource.Dispose();
+            }
+            if (null != _CancellationTokenSource)
+            {
+                _CancellationTokenSource.Dispose();
+                _CancellationTokenSource = null;
             }
 
             return Task.CompletedTask;
@@ -138,7 +143,11 @@ namespace ConsoleCore.Demos
                         _SqsQueue.Dispose();
                         _SqsQueue = null;
                     }
-                    _CancellationTokenSource.Dispose();
+                    if (null != _CancellationTokenSource)
+                    {
+                        _CancellationTokenSource.Dispose();
+                        _CancellationTokenSource = null;
+                    }
                 }
                 _Disposed = true;
                 // placeholder for cleaning up unmanaged objects
