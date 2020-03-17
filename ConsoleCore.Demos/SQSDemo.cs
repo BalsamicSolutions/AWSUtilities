@@ -32,15 +32,15 @@ namespace ConsoleCore.Demos
     /// </summary>
     public class SQSDemo : IHostedService, IDisposable
     {
+        private Random _RandomDelay = RandomStuff.NewRandomGenerator();
         private bool _Disposed = false;
-        private CancellationTokenSource _CancellationTokenSource;
-        private Task _WorkTask = null;
-        private ILogger _SysLogger = null;
+        private CancellationTokenSource _CancellationTokenSource = null;
+        private ILogger<SQSDemo> _SysLogger = null;
         private IConfiguration _Configuration = null;
         private int _QueueDelayInSeconds = 30;
         private SqsQueueDispatcher<SQSDemoQueueData> _SqsQueue = null;
 
-        public SQSDemo(IConfiguration config, ILogger sysLogger)
+        public SQSDemo(IConfiguration config, ILogger<SQSDemo> sysLogger)
         {
             _SysLogger = sysLogger;
             _Configuration = config;
@@ -53,6 +53,7 @@ namespace ConsoleCore.Demos
         /// <returns></returns>
         public Task StartAsync(CancellationToken stoppingToken)
         {
+            _CancellationTokenSource = new CancellationTokenSource();
             //read our configuration
             _QueueDelayInSeconds = int.Parse(_Configuration.GetValue<string>("appSettings:QueueDelay"));
             string queueName = _Configuration.GetValue<string>("appSettings:QueueName");
@@ -76,9 +77,13 @@ namespace ConsoleCore.Demos
             bool returnValue = false;
             try
             {
-                _SysLogger.LogInformation($"Recieved new message {recieptHandle} with {queueData.RandomId}/{queueData.RandomData}/{queueData.MoreRandomData}");
+                //to keep this real, we will randomize the delay periods, the effect is visible
+                //when  MaxConcurrency is more than 1
+                int delayMod = _RandomDelay.Next(_QueueDelayInSeconds,_QueueDelayInSeconds * 5);
+                _SysLogger.LogInformation($"Working on message for {delayMod} seconds data: {queueData.RandomData}:{queueData.MoreRandomData}\r\n{recieptHandle}");
                 //Normally you would do work here, for our demo we just sleep a bit
-                Task.Delay(TimeSpan.FromSeconds(_QueueDelayInSeconds), _CancellationTokenSource.Token);
+                Task waitForIt = Task.Delay(TimeSpan.FromSeconds(delayMod), _CancellationTokenSource.Token);
+                waitForIt.Wait();
                 if(!_CancellationTokenSource.IsCancellationRequested)
                 {
                     returnValue = true;
@@ -111,6 +116,7 @@ namespace ConsoleCore.Demos
                 _SqsQueue.UnSubscribe();
                 _SqsQueue.Dispose();
                 _SqsQueue = null;
+                _CancellationTokenSource.Dispose();
             }
 
             return Task.CompletedTask;

@@ -55,6 +55,10 @@ namespace ConsoleCore.Demos
 
             if (sqsDemo)
             {
+                //modify some of the time controls to make the demo faster
+                SqsQueueDispatcher<SQSDemo>.QueueVisibilityTimeoutInSeconds = 30;
+                SqsQueueDispatcher<SQSDemo>.QueueWaitIntervalInSeconds = 10;
+                EnqueueMessages(10);
                 Console.WriteLine("starting sqs queue service (ctrl-c to exit)");
                 string localPath = Directory.GetCurrentDirectory();
                 IHostBuilder hostbuilder = new HostBuilder()
@@ -99,16 +103,7 @@ namespace ConsoleCore.Demos
                 }
                 else if (sqsEnqueue)
                 {
-                    var config = GetConfiguration();
-                    string queueName = config.GetValue<string>("appSettings:QueueName");
-                    Console.WriteLine($"Queueing 20 messages to {queueName}");
-                    SqsQueueDispatcher<SQSDemoQueueData> sqsQueue = new SqsQueueDispatcher<SQSDemoQueueData>(queueName);
-                    for (int count = 0; count < 20; count++)
-                    {
-                        SQSDemoQueueData queueData = SQSDemoQueueData.RandomQueueData();
-                        sqsQueue.EnqueueMessage(queueData);
-                    }
-                    Console.WriteLine($"Completed queueing 20 messages to {queueName}");
+                   EnqueueMessages(20);
                 }
                 Console.WriteLine("Press X to exit...");
                 char exitChar = Console.ReadKey().KeyChar;
@@ -118,6 +113,24 @@ namespace ConsoleCore.Demos
                 }
             }
 
+        }
+
+        /// <summary>
+        /// simple method to enqueue items to the demo queue
+        /// </summary>
+        /// <param name="numItems"></param>
+        static void EnqueueMessages(int numItems)
+        {
+            var config = GetConfiguration();
+            string queueName = config.GetValue<string>("appSettings:QueueName");
+            Console.WriteLine($"Queueing {numItems} messages to {queueName}");
+            SqsQueueDispatcher<SQSDemoQueueData> sqsQueue = new SqsQueueDispatcher<SQSDemoQueueData>(queueName);
+            for (int count = 0; count < numItems; count++)
+            {
+                SQSDemoQueueData queueData = SQSDemoQueueData.RandomQueueData();
+                sqsQueue.EnqueueMessage(queueData);
+            }
+            Console.WriteLine($"Completed queueing {numItems} messages to {queueName}");
         }
 
         //place holder to read configuration outside

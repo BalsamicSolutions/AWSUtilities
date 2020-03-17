@@ -38,7 +38,9 @@ timeout expires.
 ## AWS
 If you are running on EC2 and have assigned permissions to an IAM role for that instance, everything should work as is. If however, you are running outside of AWS
 or not on an EC2 instance (or workspace) with specific IAM permissions you will need to specify your AWS Access Key and Secret Key in such
-a way that .NET Core 2.X will recognize it. The AWS guidance for that can be found here https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/deployment-ecs-specify-credentials.html . If you prefer a simpler method for testing, I suggest the use of enviornment variables which is internally supported. Use AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for keys. Use AWS_REGION for your region. 
+a way that .NET Core 2.X will recognize it. The AWS guidance for that can be found here https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/deployment-ecs-specify-credentials.html . 
+If you prefer a simpler method for testing, I suggest the use of enviornment variables which is internally supported. Use AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for keys. Use AWS_REGION for your region. 
+You can set those on your project Properties using the Environment Variables section of Debug tab.
 
 
 

@@ -1,4 +1,9 @@
-﻿using Amazon.SQS;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using Amazon.SQS;
 using Amazon.SQS.Model;
 using Amazon.AutoScaling;
 using Microsoft.Extensions.Logging;
@@ -34,15 +39,25 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             public string RecieptHandle { get; set; }
         }
 
+        /// <summary>
+        /// QueueWaitIntervalInSeconds is how long the queue will sleep if it
+        /// does not get a message to dispatch if you need faster than a two minute
+        /// response to the first message in the queue, drop this value
+        /// </summary>
+        public static int QueueWaitIntervalInSeconds {get;set; } = 120;
 
-        public const int QUEUE_WAIT_INTERVAL_SECONDS = 120;
-        public const int QUEUE_VISIBILITY_TIMEOUT_SECONDS = 300;
+        /// <summary>
+        /// QueueVisibilityTimeoutInSeconds is how long a message is invisible
+        /// for every time it is dispatched or extended.
+        /// </summary>
+        public static int QueueVisibilityTimeoutInSeconds{get;set; } = 300;
+
         public const int MAX_DISPATCH_COUNT = 15;
         private AutoScaleLifeCycleMonitor _AutoScaleLifeCycleMonitor = null;
         private AmazonSQSClient _AmazonSQSClient = null;
         private int _ConcurrentDispatchCount = 1;
         private object _LockProxy = new object();
-        Task[] _DispatchTasks = null;
+        private Task[] _DispatchTasks = null;
         private CancellationTokenSource _CancellationTokenSource = null;
         private string _QueueName = null;
         private string _QueueUrl = null;
@@ -98,7 +113,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             _AutoScaleLifeCycleMonitor = AutoScaleLifeCycleMonitor.Instance;
             _AutoScaleLifeCycleMonitor.BeforeTerminate += AutoScaleLifeCycleMonitor_TerminateWait;
             _ConcurrentDispatchCount = concurrentDispatchCount;
-            //-1 is the flag to calculate concurrency 
+            //-1 is the flag to calculate concurrency
             if (_ConcurrentDispatchCount == -1)
             {
                 _ConcurrentDispatchCount = (Environment.ProcessorCount / 2) - 1;
@@ -131,10 +146,10 @@ namespace BalsamicSolutions.AWSUtilities.SQS
                 if (null != _DispatchTasks)
                 {
                     _CancellationTokenSource.Cancel();
-                    _HandleRefresh.Wait(QUEUE_WAIT_INTERVAL_SECONDS);
+                    _HandleRefresh.Wait(QueueWaitIntervalInSeconds);
                     _HandleRefresh.Dispose();
                     _HandleRefresh = null;
-                    Task.WaitAll(_DispatchTasks, QUEUE_WAIT_INTERVAL_SECONDS);
+                    Task.WaitAll(_DispatchTasks, QueueWaitIntervalInSeconds);
                     for (int taskIdx = 0; taskIdx < _DispatchTasks.Length; taskIdx++)
                     {
                         try
@@ -154,7 +169,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         /// extend ownerships of dispatched work items
         /// that are still pending completion
         /// </summary>
-        void ExtendReceiptHandleOwnerships()
+        private void ExtendReceiptHandleOwnerships()
         {
             lock (_LockProxy)
             {
@@ -227,7 +242,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             {
                 QueueUrl = _QueueUrl,
                 MaxNumberOfMessages = messageCount,
-                VisibilityTimeout = QUEUE_VISIBILITY_TIMEOUT_SECONDS,
+                VisibilityTimeout = QueueVisibilityTimeoutInSeconds,
                 WaitTimeSeconds = 20
             };
             ReceiveMessageResponse awsResp = _AmazonSQSClient.ReceiveMessageAsync(receiveMessageRequest).Result;
@@ -236,7 +251,6 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             {
                 foreach (Message responseMessage in awsResp.Messages)
                 {
-
                     SqsPayload payload = new SqsPayload
                     {
                         RecieptHandle = responseMessage.ReceiptHandle,
@@ -267,7 +281,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             {
                 QueueUrl = _QueueUrl,
                 MaxNumberOfMessages = messageCount,
-                VisibilityTimeout = QUEUE_VISIBILITY_TIMEOUT_SECONDS,
+                VisibilityTimeout = QueueVisibilityTimeoutInSeconds,
                 WaitTimeSeconds = 20
             };
             ReceiveMessageResponse awsResp = await _AmazonSQSClient.ReceiveMessageAsync(receiveMessageRequest, cancellationToken);
@@ -302,7 +316,6 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         {
             lock (_LockProxy)
             {
-
                 if (null == _DispatchTasks)
                 {
                     _CancellationTokenSource = new CancellationTokenSource();
@@ -315,7 +328,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
                             while (!cancellationToken.IsCancellationRequested)
                             {
                                 ExtendReceiptHandleOwnerships();
-                                await Task.Delay(TimeSpan.FromSeconds(QUEUE_WAIT_INTERVAL_SECONDS), cancellationToken);
+                                await Task.Delay(TimeSpan.FromSeconds(QueueWaitIntervalInSeconds), cancellationToken);
                             }
                         }, cancellationToken);
                     }
@@ -345,7 +358,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         /// calls the handler with a single entry
         /// </summary>
         /// <param name="queuePayload"></param>
-        void DispatchPayloadToCallBackHandler(SqsPayload queuePayload, Func<T, string, SqsQueueDispatcher<T>, bool> callBackHandler)
+        private void DispatchPayloadToCallBackHandler(SqsPayload queuePayload, Func<T, string, SqsQueueDispatcher<T>, bool> callBackHandler)
         {
             try
             {
@@ -371,11 +384,9 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             }
             catch (Exception logThis)
             {
-
                 if (null != _SysLogger)
                 {
                     _SysLogger.LogError(logThis.ExceptionText());
-
                 }
                 if (null != _SysLogger)
                 {
@@ -383,7 +394,6 @@ namespace BalsamicSolutions.AWSUtilities.SQS
                 }
 
                 System.Diagnostics.Trace.WriteLine(logThis.Message);
-
             }
             finally
             {
@@ -398,7 +408,7 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         /// <summary>
         /// actual task for processing dispatchs
         /// </summary>
-        async Task DispatchOneQueuedWorkItem(Func<T, string, SqsQueueDispatcher<T>, bool> callBackHandler, CancellationToken cancellationToken)
+        private async Task DispatchOneQueuedWorkItem(Func<T, string, SqsQueueDispatcher<T>, bool> callBackHandler, CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -433,12 +443,11 @@ namespace BalsamicSolutions.AWSUtilities.SQS
                     }
                     if (shouldSleep)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(QUEUE_WAIT_INTERVAL_SECONDS), cancellationToken);
+                        await Task.Delay(TimeSpan.FromSeconds(QueueWaitIntervalInSeconds), cancellationToken);
                     }
                 }
             }
         }
-
 
         /// <summary>
         /// initialize queue's for use
@@ -479,7 +488,6 @@ namespace BalsamicSolutions.AWSUtilities.SQS
             return returnValue;
         }
 
-
         /// <summary>
         /// implement the disposable pattern.
         /// </summary>
@@ -498,12 +506,10 @@ namespace BalsamicSolutions.AWSUtilities.SQS
                     }
                 }
 
-
                 _Disposed = true;
             }
         }
 
-           
         /// <summary>
         /// implement the disposable pattern.
         /// </summary>
@@ -511,7 +517,5 @@ namespace BalsamicSolutions.AWSUtilities.SQS
         {
             Dispose(true);
         }
-
-
     }
 }
