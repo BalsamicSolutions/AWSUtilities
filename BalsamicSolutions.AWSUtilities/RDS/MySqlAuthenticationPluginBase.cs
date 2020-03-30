@@ -7,6 +7,7 @@ using MySql.Data.MySqlClient.Authentication;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Ubiety.Dns.Core;
 
 namespace BalsamicSolutions.AWSUtilities.RDS
 {
@@ -53,15 +54,14 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         /// <returns></returns>
         public static string GetCNameOfHostOrNull(string hostName)
         {
-            Ubiety.Dns.Core.Resolver dnsLookup = new Ubiety.Dns.Core.Resolver()
-            {
-                Recursion = true,
-                UseCache = false,
-                Timeout = 1000,
-                Retries = 3
-            };
+ 
+            Resolver dnsLookup = ResolverBuilder.Begin()
+                .SetTimeout(1000)
+                .SetRetries(3)
+                .UseRecursion()
+                .Build();
             string returnValue = null;
-            Ubiety.Dns.Core.Response dnsResponse = dnsLookup.Query(hostName, Ubiety.Dns.Core.Common.QuestionType.CNAME, Ubiety.Dns.Core.Common.QuestionClass.IN);
+            Response dnsResponse = dnsLookup.Query(hostName, Ubiety.Dns.Core.Common.QuestionType.CNAME, Ubiety.Dns.Core.Common.QuestionClass.IN);
             List<Ubiety.Dns.Core.Records.General.RecordCname> cnameRecords = dnsResponse.GetRecords<Ubiety.Dns.Core.Records.General.RecordCname>();
             if (cnameRecords.Count > 0)
             {
