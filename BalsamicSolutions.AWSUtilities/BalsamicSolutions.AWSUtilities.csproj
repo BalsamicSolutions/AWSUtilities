@@ -18,6 +18,17 @@
     <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
+  <!--
+    System.Interactive.Async contains IAsyncEnumerable<T> that conflicts with .NET Core version
+    Give assembly an alias so .NET Core version can be referenced in C#
+  -->
+  <Target Name="ChangeAliasesOfReactiveExtensions" BeforeTargets="FindReferenceAssembliesForReferences;ResolveReferences">
+    <ItemGroup>
+      <ReferencePath Condition="'%(FileName)' == 'System.Interactive.Async'">
+        <Aliases>ix</Aliases>
+      </ReferencePath>
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <PackageReference Include="Amazon.Lambda.CloudWatchEvents" Version="1.0.0" />
     <PackageReference Include="Amazon.Lambda.S3Events" Version="1.1.0" />
