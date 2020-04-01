@@ -35,13 +35,23 @@ namespace ConsoleCore.Demos
                 string testValue = Guid.NewGuid().ToString("N");
                 RedisKey rKey = "CONNECTTESTA";
                 RedisValue rValue = testValue;
+
                 //forceConnect.StringSet(rKey, rValue);
                 retryPolicy.ExecuteWithRetry(()=>forceConnect.StringSet(rKey, rValue));
-                
-                string responseValue=retryPolicy.ExecuteWithRetry<string>(()=>forceConnect.StringGet(rKey));
+                //retryPolicy.ExecuteWithRetryAsync(()=>forceConnect.StringSetAsync(rKey, rValue)).Wait();
+
                 //string responseValue = forceConnect.StringGet(rKey);
+                string responseValue=retryPolicy.ExecuteWithRetry<string>(()=>forceConnect.StringGet(rKey));
+                //string responseValueAsync =  retryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>forceConnect.StringGetAsync(rKey)).Result;
+                //Task<RedisValue> asyncTask = retryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>forceConnect.StringGetAsync(rKey));
+                //asyncTask.Wait();
+                //string responseValue = asyncTask.Result;
+
+                
                 bool returnValue = (testValue == (string)responseValue);
                 Console.WriteLine(returnValue);
+
+                //string responseValueAsync=retryPolicy.ExecuteWithRetry<string>(()=>forceConnect.StringGetAsync(rKey));
             }
             Console.WriteLine("Press X to exit...");
             char exitChar = Console.ReadKey().KeyChar;
