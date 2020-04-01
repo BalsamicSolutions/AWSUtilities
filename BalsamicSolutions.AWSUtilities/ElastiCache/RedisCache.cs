@@ -18,32 +18,94 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
     /// that wraps all calls with a retry handler
     /// allows individual calls to recovery from
     /// ElasticCache Redis cluster changes and
-    /// network connectivity blips. The 
+    /// network connectivity blips. The
     /// conneciton multiplexer alrady has reconnect
     /// functionality, but the individual calls do not
     /// </summary>
     public class RedisCache : IDatabase
     {
-        string _ConnectionString = null;
+        private string _ConnectionString = null;
+        private int _DatabaseId = -1;
+        private Lazy<ConnectionMultiplexer> _Multiplexer = null;
+        private RedisRetryPolicy _RetryPolicy = null;
+        private object _AsyncState = null;
 
         /// <summary>
-        /// ctor
+        ///  CTOR
         /// </summary>
         /// <param name="connectionString">StackExchange.Redis formated connection string</param>
         public RedisCache(string connectionString)
+            : this(connectionString, new DefaultRedisRetryPolicy())
         {
-            if(connectionString.IsNullOrWhiteSpace()) throw new ArgumentNullException(nameof(connectionString));
+        }
+
+        /// <summary>
+        ///  CTOR
+        /// </summary>
+        /// <param name="connectionString">StackExchange.Redis formated connection string</param>
+        /// <param name="retryPolicy">Retry policy</param>
+        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy)
+             : this(connectionString, new DefaultRedisRetryPolicy(), -1)
+        {
+        }
+
+        /// <summary>
+        ///  CTOR
+        /// </summary>
+        /// <param name="connectionString">StackExchange.Redis formated connection string</param>
+        /// <param name="retryPolicy">Retry policy</param>
+        /// <param name="databaseId">Database ID (-1 for clusters or no preference)</param>
+        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId)
+            : this(connectionString, new DefaultRedisRetryPolicy(), -1, null)
+        {
+        }
+
+        /// <summary>
+        ///  CTOR
+        /// </summary>
+        /// <param name="connectionString">StackExchange.Redis formated connection string</param>
+        /// <param name="retryPolicy">Retry policy</param>
+        /// <param name="databaseId">Database ID (-1 for clusters or no preference)</param>
+        /// <param name="asyncState">The async state to pass into the underlying databases</param>
+        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId, object asyncState)
+        {
+            if (connectionString.IsNullOrWhiteSpace()) throw new ArgumentNullException(nameof(connectionString));
+            if (null == retryPolicy) throw new ArgumentNullException(nameof(retryPolicy));
+            _ConnectionString = connectionString;
+            _RetryPolicy = retryPolicy;
+            _Multiplexer = CreateMultiplexer();
+            _DatabaseId = databaseId;
+            _AsyncState = asyncState;
+        }
+
+        /// <summary>
+        /// create the Redis ConnectionMultiplexer
+        /// </summary>
+        /// <returns></returns>
+        private Lazy<ConnectionMultiplexer> CreateMultiplexer()
+        {
+            return new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(_ConnectionString));
+        }
+
+        /// <summary>
+        /// get an actual IDatabase
+        /// </summary>
+        /// <returns></returns>
+        private IDatabase GetDatabaseInternal()
+        {
+            return _Multiplexer.Value.GetDatabase(_DatabaseId,_AsyncState);
         }
 
         #region IDatabase
 
-        public int Database => throw new NotImplementedException();
+        public int Database => _DatabaseId;
 
-        public IConnectionMultiplexer Multiplexer => throw new NotImplementedException();
+        public IConnectionMultiplexer Multiplexer => _Multiplexer.Value;
 
         public IBatch CreateBatch(object asyncState = null)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<IBatch>(()=>redisDb.CreateBatch(asyncState));
         }
 
         public ITransaction CreateTransaction(object asyncState = null)

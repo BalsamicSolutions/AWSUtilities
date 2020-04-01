@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BalsamicSolutions.AWSUtilities.Extensions;
 using StackExchange.Redis;
@@ -15,86 +16,109 @@ using StackExchange.Redis;
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
     /// <summary>
-    /// retry extensions for Redis cloud
-    /// operations, similar in concept to
-    /// the Entity Framework execution policy
+    /// simple retry extensions for Redis 
+    /// operations, for more advanced
     /// </summary>
-    internal static class RedisRetryExtensions
+    public static class RedisRetryExtensions
     {
+        private static RedisRetryPolicy _DefaultRetryPolicy = new DefaultRedisRetryPolicy();
+ 
+
         /// <summary>
-		/// forward a void to our handler
-		/// </summary>
-		public static void Exec(this IDatabase redisDb, Action redisFunction)
+        /// forward a void to our handler
+        /// </summary>
+        public static void ExecuteWithRetry(this IRedisRetryPolicy retryPolicy, Action redisFunction)
         {
-            PerformRemoteActionWithSocketCheck(redisFunction, AWS.CloudWatchAlarmTypes.RedisIsUnavailable);
+            ExecuteWithRetryInternal(redisFunction, retryPolicy);
         }
+
 
         /// <summary>
         /// forward a method with a return result to our handler
         /// </summary>
-        public static T Exec<T>(this IDatabase redisDb, Func<T> redisFunction)
+        public static T ExecuteWithRetry<T>(this IRedisRetryPolicy retryPolicy, Func<T> redisFunction)
         {
             var returnValue = default(T);
-            PerformRemoteActionWithSocketCheck(() => returnValue = redisFunction(), AWS.CloudWatchAlarmTypes.RedisIsUnavailable);
+            ExecuteWithRetryInternal(() => returnValue = redisFunction(), retryPolicy);
             return returnValue;
         }
 
-        
-        //static bool TryCast<T>(this object obj, out T result)
-        //{
-        //    if (obj is T)
-        //    {
-        //        result = (T)obj;
-        //        return true;
-        //    }
-
-        //    result = default(T);
-        //    return false;
-        //}
+         
 
         /// <summary>
         /// Ok time to call whatever it is we are trying to do
         /// </summary>
-        private static void PerformRemoteActionWithSocketCheck(Action dbAction)
+        private static T ExecuteWithRetryInternal<T>(Func<T> dbAction, IRedisRetryPolicy retryPolicy)
         {
-            try
+            IRedisRetryPolicy callPolicy = null == retryPolicy?_DefaultRetryPolicy:retryPolicy;
+
+            int retryCount = callPolicy.MaxRetry;
+            TimeSpan? delay = null;
+            while (true)
             {
-                dbAction();
+                try
+                {
+                    T returnValue = dbAction();
+                    return returnValue;
+                }
+                catch (Exception callError)
+                {
+                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
+                    {
+                        retryCount--;
+                        delay = callPolicy.CalculateDelay(retryCount);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                if (delay.HasValue)
+                {
+                    //borrowed from Entity Framework execution strategy
+                    using (var waitEvent = new ManualResetEventSlim(false))
+                    {
+                        waitEvent.WaitHandle.WaitOne(delay.Value);
+                    }
+                }
             }
-            catch (Exception callError)
+        }
+
+        /// <summary>
+        /// Ok time to call whatever it is we are trying to do
+        /// </summary>
+        private static void ExecuteWithRetryInternal(Action dbAction, IRedisRetryPolicy retryPolicy)
+        {
+            IRedisRetryPolicy callPolicy = null == retryPolicy?_DefaultRetryPolicy:retryPolicy;
+            int retryCount = callPolicy.MaxRetry;
+            TimeSpan? delay = null;
+            while (true)
             {
-                System.Diagnostics.Trace.WriteLine(string.Format("error in {0}", callError.Message));
-                System.Net.Sockets.SocketException socketError = callError as System.Net.Sockets.SocketException;
-                if (null != socketError)
+                try
                 {
-
+                    dbAction();
+                    return;
                 }
-                if (callError is System.AggregateException)
+                catch (Exception callError)
                 {
-                    System.AggregateException aggregateError = callError as System.AggregateException;
-                    if (null != aggregateError)
+                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
                     {
-                        foreach (Exception innerError in aggregateError.InnerExceptions)
-                        {
-
-                        }
+                        retryCount--;
+                        delay = callPolicy.CalculateDelay(retryCount);
+                    }
+                    else
+                    {
+                        throw;
                     }
                 }
-                else
+                if (delay.HasValue)
                 {
-                    Exception innerException = callError.InnerException;
-                    while (null != innerException)
+                    //borrowed from Entity Framework execution strategy
+                    using (var waitEvent = new ManualResetEventSlim(false))
                     {
-                        //for databases, we only log client problems to
-                        //cloud watch , which always have a socket error in them
-                        if (innerException is System.Net.Sockets.SocketException)
-                        {
-
-                        }
-                        innerException = innerException.InnerException;
+                        waitEvent.WaitHandle.WaitOne(delay.Value);
                     }
                 }
-                throw;
             }
         }
     }

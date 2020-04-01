@@ -18,18 +18,45 @@ using Demo.Data;
 using Demo.Data.Testing;
 using BalsamicSolutions.AWSUtilities.Extensions;
 using BalsamicSolutions.AWSUtilities.SQS;
+using BalsamicSolutions.AWSUtilities.ElastiCache;
+using StackExchange.Redis;
 
 namespace ConsoleCore.Demos
 {
     internal class Program
     {
+        public static void Main(string[] args)
+        {
+            string connectionString ="ubuntu-srv,abortConnect=false";
+            DefaultRedisRetryPolicy retryPolicy = new DefaultRedisRetryPolicy();
+            using (ConnectionMultiplexer redisConnection = ConnectionMultiplexer.Connect(connectionString))
+            {
+                IDatabase forceConnect = redisConnection.GetDatabase();
+                string testValue = Guid.NewGuid().ToString("N");
+                RedisKey rKey = "CONNECTTESTA";
+                RedisValue rValue = testValue;
+                //forceConnect.StringSet(rKey, rValue);
+                retryPolicy.ExecuteWithRetry(()=>forceConnect.StringSet(rKey, rValue));
+                
+                string responseValue=retryPolicy.ExecuteWithRetry<string>(()=>forceConnect.StringGet(rKey));
+                //string responseValue = forceConnect.StringGet(rKey);
+                bool returnValue = (testValue == (string)responseValue);
+                Console.WriteLine(returnValue);
+            }
+            Console.WriteLine("Press X to exit...");
+            char exitChar = Console.ReadKey().KeyChar;
+            while (exitChar != 'X' && exitChar != 'x')
+            {
+                exitChar = Console.ReadKey().KeyChar;
+            }
+        }
 
         /// <summary>
         /// main entry point for .net core demos
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        public static async Task Main(string[] args)
+        public static async Task MainA(string[] args)
         {
             bool efDemo = false;
             bool sqsDemo = false;
@@ -103,7 +130,7 @@ namespace ConsoleCore.Demos
                 }
                 else if (sqsEnqueue)
                 {
-                   EnqueueMessages(20);
+                    EnqueueMessages(20);
                 }
                 Console.WriteLine("Press X to exit...");
                 char exitChar = Console.ReadKey().KeyChar;
