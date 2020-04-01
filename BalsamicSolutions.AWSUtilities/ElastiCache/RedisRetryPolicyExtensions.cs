@@ -34,10 +34,9 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// <summary>
         /// execute the action using the retry policy with async operations
         /// </summary>
-        public static async Task ExecuteWithRetryAsync(this IRedisRetryPolicy retryPolicy, Func<Task> redisAction)
+        public static Task ExecuteWithRetryAsync(this IRedisRetryPolicy retryPolicy, Func<Task> redisAction)
         {
-            //TODO add CancellationToken overload
-            await ExecuteWithRetryInternalAsync(redisAction, retryPolicy);
+            return ExecuteWithRetryInternalAsync(redisAction, retryPolicy);
         }
 
         /// <summary>
@@ -53,89 +52,90 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// <summary>
         /// execute the function and return an async task result using the retry policy
         /// </summary>
-        public async static Task<T> ExecuteWithRetryAsync<T>(this IRedisRetryPolicy retryPolicy, Func<Task<T>> asyncFunction)
+        public static Task<T> ExecuteWithRetryAsync<T>(this IRedisRetryPolicy retryPolicy, Func<Task<T>> asyncFunction)
         {
-            //TODO add CancellationToken overload
-            var returnValue = default(T);
-            await ExecuteWithRetryInternalAsync(async () => returnValue = await asyncFunction(), retryPolicy);
+            return ExecuteWithRetryInternalAsync(() => asyncFunction(), retryPolicy);
+        }
+
+        /// <summary>
+        /// In order for us to return the task, we need to create a new task
+        /// that wraps the async action task so that it can be retried withen
+        /// an external await
+        /// </summary>
+        private static Task ExecuteWithRetryInternalAsync(Func<Task> asyncAction, IRedisRetryPolicy retryPolicy)
+        {
+            IRedisRetryPolicy callPolicy = null == retryPolicy ? _DefaultRetryPolicy : retryPolicy;
+            int retryCount = callPolicy.MaxRetry;
+            Task returnValue = Task.Run(async () =>
+            {
+                TimeSpan? delay = null;
+                bool runTask = true;
+                while (runTask)
+                {
+                    try
+                    {
+                        await asyncAction();
+                        runTask = false;
+                    }
+                    catch (Exception callError)
+                    {
+                        if (retryCount > 0 && callPolicy.ShouldRetry(callError))
+                        {
+                            retryCount--;
+                            delay = callPolicy.CalculateDelay(retryCount);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                    if (delay.HasValue)
+                    {
+                        await Task.Delay(delay.Value);
+                    }
+                }
+            });
             return returnValue;
         }
 
         /// <summary>
-        /// Ok time to call whatever it is we are trying to do
+        /// In order for us to return the task, we need to create a new task
+        /// that wraps the async action task so that it can be retried withen
+        /// an external await
         /// </summary>
-        private static async Task ExecuteWithRetryInternalAsync(Func<Task> asyncAction, IRedisRetryPolicy retryPolicy)
+        private static Task<T> ExecuteWithRetryInternalAsync<T>(Func<Task<T>> asyncFunction, IRedisRetryPolicy retryPolicy)
         {
             IRedisRetryPolicy callPolicy = null == retryPolicy ? _DefaultRetryPolicy : retryPolicy;
             int retryCount = callPolicy.MaxRetry;
-            TimeSpan? delay = null;
-            while (true)
+            Task<T> returnValue = Task.Run<T>(async () =>
             {
-                try
+                TimeSpan? delay = null;
+                while (true)
                 {
-                    await asyncAction();
-                    return;
-                }
-                catch (Exception callError)
-                {
-                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
+                    try
                     {
-                        retryCount--;
-                        delay = callPolicy.CalculateDelay(retryCount);
+                        T taskResult = await asyncFunction();
+                        return taskResult;
                     }
-                    else
+                    catch (Exception callError)
                     {
-                        throw;
+                        if (retryCount > 0 && callPolicy.ShouldRetry(callError))
+                        {
+                            retryCount--;
+                            delay = callPolicy.CalculateDelay(retryCount);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
-                }
-                if (delay.HasValue)
-                {
-                    //borrowed from Entity Framework execution strategy
-                    using (var waitEvent = new ManualResetEventSlim(false))
+                    if (delay.HasValue)
                     {
-                        waitEvent.WaitHandle.WaitOne(delay.Value);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Ok time to call whatever it is we are trying to do
-        /// </summary>
-        private static async Task<T> ExecuteWithRetryInternalAsync<T>(Func<Task<T>> asyncFunction, IRedisRetryPolicy retryPolicy)
-        {
-            IRedisRetryPolicy callPolicy = null == retryPolicy ? _DefaultRetryPolicy : retryPolicy;
-
-            int retryCount = callPolicy.MaxRetry;
-            TimeSpan? delay = null;
-            while (true)
-            {
-                try
-                {
-                   return await asyncFunction();
-                   
-                }
-                catch (Exception callError)
-                {
-                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
-                    {
-                        retryCount--;
-                        delay = callPolicy.CalculateDelay(retryCount);
-                    }
-                    else
-                    {
-                        throw;
+                        await Task.Delay(delay.Value);
                     }
                 }
-                if (delay.HasValue)
-                {
-                    //borrowed from Entity Framework execution strategy
-                    using (var waitEvent = new ManualResetEventSlim(false))
-                    {
-                        waitEvent.WaitHandle.WaitOne(delay.Value);
-                    }
-                }
-            }
+            });
+            return returnValue;
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
                 }
                 catch (Exception callError)
                 {
-                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
+                    if (retryCount > 0 && callPolicy.ShouldRetry(callError))
                     {
                         retryCount--;
                         delay = callPolicy.CalculateDelay(retryCount);
@@ -194,7 +194,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
                 }
                 catch (Exception callError)
                 {
-                    if (retryCount <= 0 && callPolicy.ShouldRetry(callError))
+                    if (retryCount > 0 && callPolicy.ShouldRetry(callError))
                     {
                         retryCount--;
                         delay = callPolicy.CalculateDelay(retryCount);

@@ -16,7 +16,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
     /// <summary>
     /// implementation of the Redis IDatabase
     /// that wraps all calls with a retry handler
-    /// allows individual calls to recovery from
+    /// allows individual calls to recover from
     /// ElasticCache Redis cluster changes and
     /// network connectivity blips. The
     /// conneciton multiplexer alrady has reconnect
@@ -110,17 +110,21 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
 
         public ITransaction CreateTransaction(object asyncState = null)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<ITransaction>(()=>redisDb.CreateTransaction(asyncState));
         }
 
         public RedisValue DebugObject(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisValue>(()=>redisDb.DebugObject(key,flags));
         }
 
         public Task<RedisValue> DebugObjectAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            Task<RedisValue> asyncTask =_RetryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>redisDb.DebugObjectAsync(key,flags));
+            return asyncTask;
         }
 
         public RedisResult Execute(string command, params object[] args)
