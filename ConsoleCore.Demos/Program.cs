@@ -25,48 +25,14 @@ namespace ConsoleCore.Demos
 {
     internal class Program
     {
-        public static void Main(string[] args)
-        {
-            string connectionString = "ubuntu-srv,abortConnect=false";
-            DefaultRedisRetryPolicy retryPolicy = new DefaultRedisRetryPolicy();
-            using (ConnectionMultiplexer redisConnection = ConnectionMultiplexer.Connect(connectionString))
-            {
-                IDatabase forceConnect = redisConnection.GetDatabase();
-                string testValue = Guid.NewGuid().ToString("N");
-                RedisKey rKey = "CONNECTTESTA";
-                RedisValue rValue = testValue;
-
-                //forceConnect.StringSet(rKey, rValue);
-                retryPolicy.ExecuteWithRetry(() => forceConnect.StringSet(rKey, rValue));
-                //retryPolicy.ExecuteWithRetryAsync(()=>forceConnect.StringSetAsync(rKey, rValue)).Wait();
-
-                //string responseValue = forceConnect.StringGet(rKey);
-                string responseValue = retryPolicy.ExecuteWithRetry<string>(() => forceConnect.StringGet(rKey));
-                //string responseValueAsync =  retryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>forceConnect.StringGetAsync(rKey)).Result;
-                //Task<RedisValue> asyncTask = retryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>forceConnect.StringGetAsync(rKey));
-                //asyncTask.Wait();
-                //string responseValue = asyncTask.Result;
-
-
-                bool returnValue = (testValue == (string)responseValue);
-                Console.WriteLine(returnValue);
-
-                //string responseValueAsync=retryPolicy.ExecuteWithRetry<string>(()=>forceConnect.StringGetAsync(rKey));
-            }
-            Console.WriteLine("Press X to exit...");
-            char exitChar = Console.ReadKey().KeyChar;
-            while (exitChar != 'X' && exitChar != 'x')
-            {
-                exitChar = Console.ReadKey().KeyChar;
-            }
-        }
+        
 
         /// <summary>
         /// main entry point for .net core demos
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        public static async Task Maina(string[] args)
+        public static async Task Main(string[] args)
         {
             bool efDemo = false;
             bool sqsDemo = false;
