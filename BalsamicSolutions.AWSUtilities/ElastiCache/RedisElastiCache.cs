@@ -13,6 +13,10 @@ using BalsamicSolutions.AWSUtilities.Extensions;
 
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
+    //TODO implement force reconnect on connection
+    //      implement connection cleanup
+    //      implement all the retry calls
+
     /// <summary>
     /// implementation of the Redis IDatabase
     /// that wraps all calls with a retry handler
@@ -22,7 +26,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
     /// conneciton multiplexer alrady has reconnect
     /// functionality, but the individual calls do not
     /// </summary>
-    public class RedisCache : IDatabase
+    public class RedisElastiCache : IDatabase
     {
         private string _ConnectionString = null;
         private int _DatabaseId = -1;
@@ -34,7 +38,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         ///  CTOR
         /// </summary>
         /// <param name="connectionString">StackExchange.Redis formated connection string</param>
-        public RedisCache(string connectionString)
+        public RedisElastiCache(string connectionString)
             : this(connectionString, new DefaultRedisRetryPolicy())
         {
         }
@@ -44,7 +48,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// </summary>
         /// <param name="connectionString">StackExchange.Redis formated connection string</param>
         /// <param name="retryPolicy">Retry policy</param>
-        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy)
+        public RedisElastiCache(string connectionString, RedisRetryPolicy retryPolicy)
              : this(connectionString, new DefaultRedisRetryPolicy(), -1)
         {
         }
@@ -55,7 +59,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// <param name="connectionString">StackExchange.Redis formated connection string</param>
         /// <param name="retryPolicy">Retry policy</param>
         /// <param name="databaseId">Database ID (-1 for clusters or no preference)</param>
-        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId)
+        public RedisElastiCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId)
             : this(connectionString, new DefaultRedisRetryPolicy(), -1, null)
         {
         }
@@ -67,7 +71,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// <param name="retryPolicy">Retry policy</param>
         /// <param name="databaseId">Database ID (-1 for clusters or no preference)</param>
         /// <param name="asyncState">The async state to pass into the underlying databases</param>
-        public RedisCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId, object asyncState)
+        public RedisElastiCache(string connectionString, RedisRetryPolicy retryPolicy, int databaseId, object asyncState)
         {
             if (connectionString.IsNullOrWhiteSpace()) throw new ArgumentNullException(nameof(connectionString));
             if (null == retryPolicy) throw new ArgumentNullException(nameof(retryPolicy));
@@ -93,7 +97,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         /// <returns></returns>
         private IDatabase GetDatabaseInternal()
         {
-            return _Multiplexer.Value.GetDatabase(_DatabaseId,_AsyncState);
+            return _Multiplexer.Value.GetDatabase(_DatabaseId, _AsyncState);
         }
 
         #region IDatabase
@@ -105,486 +109,579 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         public IBatch CreateBatch(object asyncState = null)
         {
             IDatabase redisDb = GetDatabaseInternal();
-            return _RetryPolicy.ExecuteWithRetry<IBatch>(()=>redisDb.CreateBatch(asyncState));
+            return _RetryPolicy.ExecuteWithRetry<IBatch>(() => redisDb.CreateBatch(asyncState));
         }
 
         public ITransaction CreateTransaction(object asyncState = null)
         {
             IDatabase redisDb = GetDatabaseInternal();
-            return _RetryPolicy.ExecuteWithRetry<ITransaction>(()=>redisDb.CreateTransaction(asyncState));
+            return _RetryPolicy.ExecuteWithRetry<ITransaction>(() => redisDb.CreateTransaction(asyncState));
         }
 
         public RedisValue DebugObject(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
             IDatabase redisDb = GetDatabaseInternal();
-            return _RetryPolicy.ExecuteWithRetry<RedisValue>(()=>redisDb.DebugObject(key,flags));
+            return _RetryPolicy.ExecuteWithRetry<RedisValue>(() => redisDb.DebugObject(key, flags));
         }
 
         public Task<RedisValue> DebugObjectAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
             IDatabase redisDb = GetDatabaseInternal();
-            Task<RedisValue> asyncTask =_RetryPolicy.ExecuteWithRetryAsync<RedisValue>(()=>redisDb.DebugObjectAsync(key,flags));
-            return asyncTask;
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisValue>(() => redisDb.DebugObjectAsync(key, flags));
         }
 
         public RedisResult Execute(string command, params object[] args)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisResult>(() => redisDb.Execute(command, args));
         }
 
         public RedisResult Execute(string command, ICollection<object> args, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisResult>(() => redisDb.Execute(command, args, flags));
         }
 
         public Task<RedisResult> ExecuteAsync(string command, params object[] args)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisResult>(() => redisDb.ExecuteAsync(command, args));
         }
 
         public Task<RedisResult> ExecuteAsync(string command, ICollection<object> args, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisResult>(() => redisDb.ExecuteAsync(command, args, flags));
         }
 
         public bool GeoAdd(RedisKey key, double longitude, double latitude, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.GeoAdd(key, longitude, latitude, member, flags));
         }
 
         public bool GeoAdd(RedisKey key, GeoEntry value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.GeoAdd(key, value, flags));
         }
 
         public long GeoAdd(RedisKey key, GeoEntry[] values, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.GeoAdd(key, values, flags));
         }
 
         public Task<bool> GeoAddAsync(RedisKey key, double longitude, double latitude, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.GeoAddAsync(key, longitude, latitude, member, flags));
         }
 
         public Task<bool> GeoAddAsync(RedisKey key, GeoEntry value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.GeoAddAsync(key, value, flags));
         }
 
         public Task<long> GeoAddAsync(RedisKey key, GeoEntry[] values, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.GeoAddAsync(key, values, flags));
         }
 
         public double? GeoDistance(RedisKey key, RedisValue member1, RedisValue member2, GeoUnit unit = GeoUnit.Meters, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<double?>(() => redisDb.GeoDistance(key, member1, member2, unit, flags));
         }
 
         public Task<double?> GeoDistanceAsync(RedisKey key, RedisValue member1, RedisValue member2, GeoUnit unit = GeoUnit.Meters, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<double?>(() => redisDb.GeoDistanceAsync(key, member1, member2, unit, flags));
         }
 
         public string[] GeoHash(RedisKey key, RedisValue[] members, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<string[]>(() => redisDb.GeoHash(key, members, flags));
         }
 
         public string GeoHash(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<string>(() => redisDb.GeoHash(key, member, flags));
         }
 
         public Task<string[]> GeoHashAsync(RedisKey key, RedisValue[] members, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<string[]>(() => redisDb.GeoHashAsync(key, members, flags));
         }
 
         public Task<string> GeoHashAsync(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<string>(() => redisDb.GeoHashAsync(key, member, flags));
         }
 
         public GeoPosition?[] GeoPosition(RedisKey key, RedisValue[] members, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<GeoPosition?[]>(() => redisDb.GeoPosition(key, members, flags));
         }
 
         public GeoPosition? GeoPosition(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<GeoPosition?>(() => redisDb.GeoPosition(key, member, flags));
         }
 
         public Task<GeoPosition?[]> GeoPositionAsync(RedisKey key, RedisValue[] members, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<GeoPosition?[]>(() => redisDb.GeoPositionAsync(key, members, flags));
         }
 
         public Task<GeoPosition?> GeoPositionAsync(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<GeoPosition?>(() => redisDb.GeoPositionAsync(key, member, flags));
         }
 
         public GeoRadiusResult[] GeoRadius(RedisKey key, RedisValue member, double radius, GeoUnit unit = GeoUnit.Meters, int count = -1, Order? order = null, GeoRadiusOptions options = GeoRadiusOptions.Default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<GeoRadiusResult[]>(() => redisDb.GeoRadius(key, member, radius, unit, count, order, options, flags));
         }
 
         public GeoRadiusResult[] GeoRadius(RedisKey key, double longitude, double latitude, double radius, GeoUnit unit = GeoUnit.Meters, int count = -1, Order? order = null, GeoRadiusOptions options = GeoRadiusOptions.Default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<GeoRadiusResult[]>(() => redisDb.GeoRadius(key, longitude, latitude, radius, unit, count, order, options, flags));
         }
 
         public Task<GeoRadiusResult[]> GeoRadiusAsync(RedisKey key, RedisValue member, double radius, GeoUnit unit = GeoUnit.Meters, int count = -1, Order? order = null, GeoRadiusOptions options = GeoRadiusOptions.Default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<GeoRadiusResult[]>(() => redisDb.GeoRadiusAsync(key, member, radius, unit, count, order, options, flags));
         }
 
         public Task<GeoRadiusResult[]> GeoRadiusAsync(RedisKey key, double longitude, double latitude, double radius, GeoUnit unit = GeoUnit.Meters, int count = -1, Order? order = null, GeoRadiusOptions options = GeoRadiusOptions.Default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<GeoRadiusResult[]>(() => redisDb.GeoRadiusAsync(key, longitude, latitude, radius, unit, count, order, options, flags));
         }
 
         public bool GeoRemove(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.GeoRemove(key, member, flags));
         }
 
         public Task<bool> GeoRemoveAsync(RedisKey key, RedisValue member, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.GeoRemoveAsync(key, member, flags));
         }
 
         public long HashDecrement(RedisKey key, RedisValue hashField, long value = 1, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HashDecrement(key, hashField, value, flags));
         }
 
         public double HashDecrement(RedisKey key, RedisValue hashField, double value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<double>(() => redisDb.HashDecrement(key, hashField, value, flags));
         }
 
         public Task<long> HashDecrementAsync(RedisKey key, RedisValue hashField, long value = 1, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HashDecrementAsync(key, hashField, value, flags));
         }
 
         public Task<double> HashDecrementAsync(RedisKey key, RedisValue hashField, double value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<double>(() => redisDb.HashDecrementAsync(key, hashField, value, flags));
         }
 
         public bool HashDelete(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.HashDelete(key, hashField, flags));
         }
 
         public long HashDelete(RedisKey key, RedisValue[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HashDelete(key, hashFields, flags));
         }
 
         public Task<bool> HashDeleteAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.HashDeleteAsync(key, hashField, flags));
         }
 
         public Task<long> HashDeleteAsync(RedisKey key, RedisValue[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HashDeleteAsync(key, hashFields, flags));
         }
 
         public bool HashExists(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.HashExists(key, hashField, flags));
         }
 
         public Task<bool> HashExistsAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.HashExistsAsync(key, hashField, flags));
         }
 
         public RedisValue HashGet(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisValue>(() => redisDb.HashGet(key, hashField, flags));
         }
 
         public RedisValue[] HashGet(RedisKey key, RedisValue[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisValue[]>(() => redisDb.HashGet(key, hashFields, flags));
         }
 
         public HashEntry[] HashGetAll(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<HashEntry[]>(() => redisDb.HashGetAll(key, flags));
         }
 
         public Task<HashEntry[]> HashGetAllAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<HashEntry[]>(() => redisDb.HashGetAllAsync(key, flags));
         }
 
         public Task<RedisValue> HashGetAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisValue>(() => redisDb.HashGetAsync(key, hashField, flags));
         }
 
         public Task<RedisValue[]> HashGetAsync(RedisKey key, RedisValue[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisValue[]>(() => redisDb.HashGetAsync(key, hashFields, flags));
         }
 
         public Lease<byte> HashGetLease(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<Lease<byte>>(() => redisDb.HashGetLease(key, hashField, flags));
         }
 
         public Task<Lease<byte>> HashGetLeaseAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<Lease<byte>>(() => redisDb.HashGetLeaseAsync(key, hashField, flags));
         }
 
         public long HashIncrement(RedisKey key, RedisValue hashField, long value = 1, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HashIncrement(key, hashField, value, flags));
         }
 
         public double HashIncrement(RedisKey key, RedisValue hashField, double value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<double>(() => redisDb.HashIncrement(key, hashField, value, flags));
         }
 
         public Task<long> HashIncrementAsync(RedisKey key, RedisValue hashField, long value = 1, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HashIncrementAsync(key, hashField, value, flags));
         }
 
         public Task<double> HashIncrementAsync(RedisKey key, RedisValue hashField, double value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<double>(() => redisDb.HashIncrementAsync(key, hashField, value, flags));
         }
 
         public RedisValue[] HashKeys(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisValue[]>(() => redisDb.HashKeys(key, flags));
         }
 
         public Task<RedisValue[]> HashKeysAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisValue[]>(() => redisDb.HashKeysAsync(key, flags));
         }
 
         public long HashLength(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HashLength(key, flags));
         }
 
         public Task<long> HashLengthAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HashLengthAsync(key, flags));
         }
 
         public IEnumerable<HashEntry> HashScan(RedisKey key, RedisValue pattern, int pageSize, CommandFlags flags)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<IEnumerable<HashEntry>>(() => redisDb.HashScan(key, pattern, pageSize, flags));
         }
 
         public IEnumerable<HashEntry> HashScan(RedisKey key, RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<IEnumerable<HashEntry>>(() => redisDb.HashScan(key, pattern, pageSize, cursor, pageOffset, flags));
         }
 
         public IAsyncEnumerable<HashEntry> HashScanAsync(RedisKey key, RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
         {
+            IDatabase redisDb = GetDatabaseInternal();
             throw new NotImplementedException();
+
+            //return _RetryPolicy.ExecuteWithRetryAsync<IAsyncEnumerable<HashEntry>>(() => redisDb.HashScanAsync(key, pattern,  pageSize, cursor, pageOffset, flags));
         }
 
         public void HashSet(RedisKey key, HashEntry[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            _RetryPolicy.ExecuteWithRetry(() => redisDb.HashSet(key, hashFields, flags));
         }
 
         public bool HashSet(RedisKey key, RedisValue hashField, RedisValue value, When when = When.Always, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.HashSet(key, hashField, value, when, flags));
         }
 
         public Task HashSetAsync(RedisKey key, HashEntry[] hashFields, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync(() => redisDb.HashSetAsync(key, hashFields, flags));
         }
 
         public Task<bool> HashSetAsync(RedisKey key, RedisValue hashField, RedisValue value, When when = When.Always, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.HashSetAsync(key, hashField, value, when, flags));
         }
 
         public long HashStringLength(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HashStringLength(key, hashField, flags));
         }
 
         public Task<long> HashStringLengthAsync(RedisKey key, RedisValue hashField, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HashStringLengthAsync(key, hashField, flags));
         }
 
         public RedisValue[] HashValues(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<RedisValue[]>(() => redisDb.HashValues(key, flags));
         }
 
         public Task<RedisValue[]> HashValuesAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<RedisValue[]>(() => redisDb.HashValuesAsync(key, flags));
         }
 
         public bool HyperLogLogAdd(RedisKey key, RedisValue value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.HyperLogLogAdd(key, value, flags));
         }
 
         public bool HyperLogLogAdd(RedisKey key, RedisValue[] values, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.HyperLogLogAdd(key, values, flags));
         }
 
         public Task<bool> HyperLogLogAddAsync(RedisKey key, RedisValue value, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.HyperLogLogAddAsync(key, value, flags));
         }
 
         public Task<bool> HyperLogLogAddAsync(RedisKey key, RedisValue[] values, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.HyperLogLogAddAsync(key, values, flags));
         }
 
         public long HyperLogLogLength(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HyperLogLogLength(key, flags));
         }
 
         public long HyperLogLogLength(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.HyperLogLogLength(keys, flags));
         }
 
         public Task<long> HyperLogLogLengthAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HyperLogLogLengthAsync(key, flags));
         }
 
         public Task<long> HyperLogLogLengthAsync(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.HyperLogLogLengthAsync(keys, flags));
         }
 
         public void HyperLogLogMerge(RedisKey destination, RedisKey first, RedisKey second, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            _RetryPolicy.ExecuteWithRetry(() => redisDb.HyperLogLogMerge(destination, first, second, flags));
         }
 
         public void HyperLogLogMerge(RedisKey destination, RedisKey[] sourceKeys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            _RetryPolicy.ExecuteWithRetry(() => redisDb.HyperLogLogMerge(destination, sourceKeys, flags));
         }
 
         public Task HyperLogLogMergeAsync(RedisKey destination, RedisKey first, RedisKey second, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync(() => redisDb.HyperLogLogMergeAsync(destination, first, second, flags));
         }
 
         public Task HyperLogLogMergeAsync(RedisKey destination, RedisKey[] sourceKeys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync(() => redisDb.HyperLogLogMergeAsync(destination, sourceKeys, flags));
         }
 
         public EndPoint IdentifyEndpoint(RedisKey key = default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<EndPoint>(() => redisDb.IdentifyEndpoint(key, flags));
         }
 
         public Task<EndPoint> IdentifyEndpointAsync(RedisKey key = default, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<EndPoint>(() => redisDb.IdentifyEndpointAsync(key, flags));
         }
 
         public bool IsConnected(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.IsConnected(key, flags));
         }
 
         public bool KeyDelete(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.KeyDelete(key, flags));
         }
 
         public long KeyDelete(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.KeyDelete(keys, flags));
         }
 
         public Task<bool> KeyDeleteAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.KeyDeleteAsync(key, flags));
         }
 
         public Task<long> KeyDeleteAsync(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.KeyDeleteAsync(keys, flags));
         }
 
         public byte[] KeyDump(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+             IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<byte[]>(() => redisDb.KeyDump(key, flags));
         }
 
         public Task<byte[]> KeyDumpAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+           IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<byte[]>(() => redisDb.KeyDumpAsync(key, flags));
         }
 
         public bool KeyExists(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+             IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.KeyExists(key, flags));
         }
 
         public long KeyExists(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+           IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<long>(() => redisDb.KeyExists(keys, flags));
         }
 
         public Task<bool> KeyExistsAsync(RedisKey key, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.KeyExistsAsync(key, flags));
         }
 
         public Task<long> KeyExistsAsync(RedisKey[] keys, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.KeyExistsAsync(keys, flags));
         }
 
         public bool KeyExpire(RedisKey key, TimeSpan? expiry, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.KeyExpire(key, expiry,flags));
         }
 
         public bool KeyExpire(RedisKey key, DateTime? expiry, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+             IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.KeyExpire(key, expiry,flags));
         }
 
         public Task<bool> KeyExpireAsync(RedisKey key, TimeSpan? expiry, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+             IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.KeyExpireAsync(key, expiry,flags));
         }
 
         public Task<bool> KeyExpireAsync(RedisKey key, DateTime? expiry, CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+             IDatabase redisDb = GetDatabaseInternal();
+            return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.KeyExpireAsync(key, expiry,flags));
         }
 
         public TimeSpan? KeyIdleTime(RedisKey key, CommandFlags flags = CommandFlags.None)
