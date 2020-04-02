@@ -55,11 +55,10 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         public static string GetCNameOfHostOrNull(string hostName)
         {
  
-            Resolver dnsLookup = ResolverBuilder.Begin()
-                .SetTimeout(1000)
-                .SetRetries(3)
-                .UseRecursion()
-                .Build();
+            Resolver dnsLookup = ResolverBuilder.Begin().SetTimeout(1000)
+                                                        .SetRetries(3)
+                                                        .UseRecursion()
+                                                        .Build();
             string returnValue = null;
             Response dnsResponse = dnsLookup.Query(hostName, Ubiety.Dns.Core.Common.QuestionType.CNAME, Ubiety.Dns.Core.Common.QuestionClass.IN);
             List<Ubiety.Dns.Core.Records.General.RecordCname> cnameRecords = dnsResponse.GetRecords<Ubiety.Dns.Core.Records.General.RecordCname>();

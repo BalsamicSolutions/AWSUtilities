@@ -11,10 +11,10 @@ using System.Text;
 using System.Threading.Tasks;
 using BalsamicSolutions.AWSUtilities.Extensions;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
-
     /// <summary>
     /// implementation of the Redis IDatabase that wraps all calls with a retry handler
     /// this allows individual calls to recover from  ElasticCache Redis cluster changes and
@@ -23,18 +23,25 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
     /// </summary>
     public class RedisElastiCache : IDatabase
     {
-
         /// <summary>
         /// Per https://stackexchange.github.io/StackExchange.Redis/Basics.html , ConnectionMultiplexers
         /// are expensive and should be shared, so this is our container for them
         /// </summary>
-        static Dictionary<string, Lazy<ConnectionMultiplexer>> _ConnectionMultiplexers = new Dictionary<string, Lazy<ConnectionMultiplexer>>(StringComparer.OrdinalIgnoreCase);
-        static object _MultiplexersLockProxy = new object();
-
+        private static Dictionary<string, Lazy<ConnectionMultiplexer>> _ConnectionMultiplexers = new Dictionary<string, Lazy<ConnectionMultiplexer>>(StringComparer.OrdinalIgnoreCase);
+        private static object _MultiplexersLock = new object();
+ 
         private int _DatabaseId = -1;
         private Lazy<ConnectionMultiplexer> _Multiplexer = null;
         private RedisRetryPolicy _RetryPolicy = null;
         private object _AsyncState = null;
+
+        /// <summary>
+        ///  CTOR default reads from appSettings.json
+        /// </summary>
+        public RedisElastiCache()
+            : this(Configuration.GetValue<string>("ConnectionStrings:RedisElastiCache"))
+        {
+        }
 
         /// <summary>
         ///  CTOR
@@ -83,15 +90,40 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             _AsyncState = asyncState;
         }
 
+        #region Internals
         /// <summary>
-        /// get or create the Redis ConnectionMultiplexer
+        /// get an actual IDatabase
+        /// </summary>
+        /// <returns></returns>
+        private IDatabase GetDatabaseInternal()
+        {
+            return _Multiplexer.Value.GetDatabase(_DatabaseId, _AsyncState);
+        }
+
+        /// <summary>
+        /// convient wrapper for appsettings.json
+        /// </summary>
+        private static IConfigurationRoot Configuration
+        {
+            get
+            {
+                IConfigurationBuilder builder = new ConfigurationBuilder()
+                           .SetBasePath(System.IO.Directory.GetCurrentDirectory())
+                           .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+
+                return builder.Build();
+            }
+        }
+
+        /// <summary>
+        /// get or create a Redis ConnectionMultiplexer
         /// </summary>
         /// <param name="connectionString"></param>
         /// <returns></returns>
-        private Lazy<ConnectionMultiplexer> FindOrCreateConnectionMultiplexer(string connectionString)
+        private static Lazy<ConnectionMultiplexer> FindOrCreateConnectionMultiplexer(string connectionString)
         {
             Lazy<ConnectionMultiplexer> returnValue = null;
-            lock (_MultiplexersLockProxy)
+            lock (_MultiplexersLock)
             {
                 if (!_ConnectionMultiplexers.TryGetValue(connectionString, out returnValue))
                 {
@@ -101,15 +133,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             }
             return returnValue;
         }
-
-        /// <summary>
-        /// get an actual IDatabase
-        /// </summary>
-        /// <returns></returns>
-        private IDatabase GetDatabaseInternal()
-        {
-            return _Multiplexer.Value.GetDatabase(_DatabaseId, _AsyncState);
-        }
+        #endregion
 
         #region IDatabase
 
@@ -467,7 +491,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
 
         public IAsyncEnumerable<HashEntry> HashScanAsync(RedisKey key, RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
         {
-            //This one causes us some grief as the we do not have a 
+            //This one causes us some grief as the we do not have a
             //generic retry handler that can retry in the middle
             //of an iterator loop. So for now we cheat a bit
             IDatabase redisDb = GetDatabaseInternal();
@@ -1058,7 +1082,6 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.LockTakeAsync(key, value, expiry, flags));
         }
 
-
         public TimeSpan Ping(CommandFlags flags = CommandFlags.None)
         {
             IDatabase redisDb = GetDatabaseInternal();
@@ -1082,7 +1105,6 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             IDatabase redisDb = GetDatabaseInternal();
             return _RetryPolicy.ExecuteWithRetryAsync<long>(() => redisDb.PublishAsync(channel, message, flags));
         }
-
 
         public RedisResult ScriptEvaluate(string script, RedisKey[] keys = null, RedisValue[] values = null, CommandFlags flags = CommandFlags.None)
         {
@@ -1338,14 +1360,13 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
 
         public IAsyncEnumerable<RedisValue> SetScanAsync(RedisKey key, RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
         {
-            //This one causes us some grief as the we do not have a 
+            //This one causes us some grief as the we do not have a
             //generic retry handler that can retry in the middle
             //of an iterator loop. So for now we cheat a bit
             IDatabase redisDb = GetDatabaseInternal();
             IEnumerable<RedisValue> hashValues = _RetryPolicy.ExecuteWithRetry<IEnumerable<RedisValue>>(() => redisDb.SetScan(key, pattern, pageSize, cursor, pageOffset, flags));
             AsyncEnumerable<RedisValue> returnValue = new AsyncEnumerable<RedisValue>(hashValues);
             return returnValue;
-
         }
 
         public RedisValue[] Sort(RedisKey key, long skip = 0, long take = -1, Order order = Order.Ascending, SortType sortType = SortType.Numeric, RedisValue by = default, RedisValue[] get = null, CommandFlags flags = CommandFlags.None)
@@ -1674,7 +1695,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
 
         public IAsyncEnumerable<SortedSetEntry> SortedSetScanAsync(RedisKey key, RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
         {
-            //This one causes us some grief as the we do not have a 
+            //This one causes us some grief as the we do not have a
             //generic retry handler that can retry in the middle
             //of an iterator loop. So for now we cheat a bit
             IDatabase redisDb = GetDatabaseInternal();
@@ -2246,6 +2267,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             IDatabase redisDb = GetDatabaseInternal();
             return _RetryPolicy.ExecuteWithRetryAsync<bool>(() => redisDb.StringSetBitAsync(key, offset, bit, flags));
         }
+
         public RedisValue StringSetRange(RedisKey key, long offset, RedisValue value, CommandFlags flags = CommandFlags.None)
         {
             IDatabase redisDb = GetDatabaseInternal();
@@ -2285,6 +2307,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             IDatabase redisDb = GetDatabaseInternal();
             redisDb.WaitAll(tasks);
         }
+
         #endregion IDatabase
     }
 }

@@ -21,20 +21,20 @@
     <EmbeddedResource Include="Testing\Sentences.txt" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Amazon.Lambda.CloudWatchEvents" Version="1.0.0" />
+    <PackageReference Include="Amazon.Lambda.CloudWatchEvents" Version="2.0.0" />
     <PackageReference Include="Amazon.Lambda.S3Events" Version="1.1.0" />
-    <PackageReference Include="AWSSDK.AutoScaling" Version="3.3.102.18" />
-    <PackageReference Include="AWSSDK.CloudWatch" Version="3.3.106.12" />
-    <PackageReference Include="AWSSDK.CloudWatchEvents" Version="3.3.102.17" />
-    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="3.3.101.101" />
-    <PackageReference Include="AWSSDK.Core" Version="3.3.105.5" />
-    <PackageReference Include="AWSSDK.EC2" Version="3.3.168.9" />
+    <PackageReference Include="AWSSDK.AutoScaling" Version="3.3.102.21" />
+    <PackageReference Include="AWSSDK.CloudWatch" Version="3.3.106.15" />
+    <PackageReference Include="AWSSDK.CloudWatchEvents" Version="3.3.102.20" />
+    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="3.3.101.104" />
+    <PackageReference Include="AWSSDK.Core" Version="3.3.105.8" />
+    <PackageReference Include="AWSSDK.EC2" Version="3.3.168.12" />
     <PackageReference Include="Amazon.Lambda.Core" Version="1.1.0" />
     <PackageReference Include="Amazon.Lambda.Serialization.Json" Version="1.7.0" />
-    <PackageReference Include="AWSSDK.RDS" Version="3.3.119.6" />
-    <PackageReference Include="AWSSDK.S3" Version="3.3.110.42" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.3.101.140" />
-    <PackageReference Include="AWSSDK.SQS" Version="3.3.102.83" />
+    <PackageReference Include="AWSSDK.RDS" Version="3.3.119.9" />
+    <PackageReference Include="AWSSDK.S3" Version="3.3.110.45" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.3.101.143" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.3.102.86" />
 
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[2.2.6]" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="[2.2.6]" />
@@ -64,7 +64,7 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.7.0" />
-    <PackageReference Include="Ubiety.Dns.Core" Version="4.0.0" />
+    <PackageReference Include="Ubiety.Dns.Core" Version="4.1.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BalsamicSolutions.AWSUtilities\BalsamicSolutions.AWSUtilities.csproj" />

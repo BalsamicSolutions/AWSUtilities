@@ -130,7 +130,7 @@ namespace ConsoleCore.Demos
         static void RedisConnectionTest()
         {
             var config = GetConfiguration();
-            string connectionString = config.GetValue<string>("ConnectionStrings:RedisDemo");
+            string connectionString = config.GetValue<string>("ConnectionStrings:RedisElastiCache");
             Console.WriteLine("Initializing RedisConnection");
             RedisRetryPolicy retryPolicy = new DefaultRedisRetryPolicy();
             IDatabase redisCache = new RedisElastiCache(connectionString,retryPolicy);
