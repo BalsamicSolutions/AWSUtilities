@@ -1,4 +1,9 @@
-﻿using StackExchange.Redis;
+﻿//  -----------------------------------------------------------------------------
+//   Copyright  (c) Balsamic Solutions, LLC. All rights reserved.
+//   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
+//   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
+//  -----------------------------------------------------------------------------
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -13,7 +18,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
     /// </summary>
     public class DefaultRedisRetryPolicy : RedisRetryPolicy
     {
-        bool IsSocketOrRedisTimeOutException(Exception callError)
+        private bool IsSocketOrRedisTimeOutException(Exception callError)
         {
             RedisConnectionException connectionException = callError as RedisConnectionException;
             if (null != connectionException)
@@ -24,18 +29,22 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
                     return true;
                 }
             }
+            //always retry on a timeout, this is sometimes a problem
+            //with initial connections but allows for cluster reconfiguration
+            //when a multiplexer is repointed to a  different server
             RedisTimeoutException redisException = callError as RedisTimeoutException;
             if (null != redisException)
             {
                 return true;
             }
+
             SocketException socketException = callError as SocketException;
             if (null != socketException)
             {
-                //retry on a few of these
-               if(socketException.SocketErrorCode == SocketError.TimedOut
-                    || socketException.SocketErrorCode == SocketError.InProgress
-                    || socketException.SocketErrorCode == SocketError.IOPending)
+                //retry on these
+                if (socketException.SocketErrorCode == SocketError.TimedOut
+                     || socketException.SocketErrorCode == SocketError.InProgress
+                     || socketException.SocketErrorCode == SocketError.IOPending)
                 {
                     return true;
                 }
@@ -55,6 +64,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             System.AggregateException aggregateError = callError as System.AggregateException;
             if (null != aggregateError)
             {
+                //this is kind of aggressive but you can replace it if you want to
                 foreach (Exception innerError in aggregateError.InnerExceptions)
                 {
                     if (IsSocketOrRedisTimeOutException(innerError)) return true;
@@ -62,6 +72,7 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
             }
             else
             {
+                 //this is kind of aggressive but you can replace it if you want to
                 Exception innerException = callError.InnerException;
                 while (null != innerException)
                 {
@@ -74,4 +85,3 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         }
     }
 }
-

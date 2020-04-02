@@ -12,8 +12,8 @@ using System.Threading.Tasks;
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
     /// <summary>
-    /// simple wrapper class co convert an 
-    /// IEnumerable to an IAsyncEnumerable
+    /// simple wrapper class to convert an IEnumerable to an IAsyncEnumerable
+    /// we need this for a few of the redis functions that return IAsyncEnumerables
     /// </summary>
     public class AsyncEnumerable<T> : IAsyncEnumerable<T>, IAsyncEnumerator<T>
     {

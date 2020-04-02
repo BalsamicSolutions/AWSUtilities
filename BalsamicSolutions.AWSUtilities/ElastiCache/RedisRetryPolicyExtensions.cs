@@ -15,9 +15,11 @@ using StackExchange.Redis;
 
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
+    //TODO should we move these into the retry policy class or keep them as extensions ?
+
     /// <summary>
-    /// simple retry extensions for Redis
-    /// operations, for more advanced
+    /// simple retry extensions
+    /// operations 
     /// </summary>
     public static class RedisRetryPolicyExtensions
     {

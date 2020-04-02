@@ -14,22 +14,23 @@ using System.Linq;
 
 namespace BalsamicSolutions.AWSUtilities.ElastiCache
 {
-    //TODO implement force reconnect on connection
-    //      implement connection cleanup
- 
 
     /// <summary>
-    /// implementation of the Redis IDatabase
-    /// that wraps all calls with a retry handler
-    /// allows individual calls to recover from
-    /// ElasticCache Redis cluster changes and
-    /// network connectivity blips. The
-    /// conneciton multiplexer alrady has reconnect
+    /// implementation of the Redis IDatabase that wraps all calls with a retry handler
+    /// this allows individual calls to recover from  ElasticCache Redis cluster changes and
+    /// network connectivity blips. The conneciton multiplexer already has reconnect
     /// functionality, but the individual calls do not
     /// </summary>
     public class RedisElastiCache : IDatabase
     {
-        private string _ConnectionString = null;
+
+        /// <summary>
+        /// Per https://stackexchange.github.io/StackExchange.Redis/Basics.html , ConnectionMultiplexers
+        /// are expensive and should be shared, so this is our container for them
+        /// </summary>
+        static Dictionary<string, Lazy<ConnectionMultiplexer>> _ConnectionMultiplexers = new Dictionary<string, Lazy<ConnectionMultiplexer>>(StringComparer.OrdinalIgnoreCase);
+        static object _MultiplexersLockProxy = new object();
+
         private int _DatabaseId = -1;
         private Lazy<ConnectionMultiplexer> _Multiplexer = null;
         private RedisRetryPolicy _RetryPolicy = null;
@@ -76,20 +77,29 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
         {
             if (connectionString.IsNullOrWhiteSpace()) throw new ArgumentNullException(nameof(connectionString));
             if (null == retryPolicy) throw new ArgumentNullException(nameof(retryPolicy));
-            _ConnectionString = connectionString;
             _RetryPolicy = retryPolicy;
-            _Multiplexer = CreateMultiplexer();
+            _Multiplexer = FindOrCreateConnectionMultiplexer(connectionString);
             _DatabaseId = databaseId;
             _AsyncState = asyncState;
         }
 
         /// <summary>
-        /// create the Redis ConnectionMultiplexer
+        /// get or create the Redis ConnectionMultiplexer
         /// </summary>
+        /// <param name="connectionString"></param>
         /// <returns></returns>
-        private Lazy<ConnectionMultiplexer> CreateMultiplexer()
+        private Lazy<ConnectionMultiplexer> FindOrCreateConnectionMultiplexer(string connectionString)
         {
-            return new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(_ConnectionString));
+            Lazy<ConnectionMultiplexer> returnValue = null;
+            lock (_MultiplexersLockProxy)
+            {
+                if (!_ConnectionMultiplexers.TryGetValue(connectionString, out returnValue))
+                {
+                    returnValue = new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(connectionString));
+                    _ConnectionMultiplexers.Add(connectionString, returnValue);
+                }
+            }
+            return returnValue;
         }
 
         /// <summary>
@@ -2250,26 +2260,30 @@ namespace BalsamicSolutions.AWSUtilities.ElastiCache
 
         public bool TryWait(Task task)
         {
+            //No remote IO so just call it
             IDatabase redisDb = GetDatabaseInternal();
-            return _RetryPolicy.ExecuteWithRetry<bool>(() => redisDb.TryWait(task));
+            return redisDb.TryWait(task);
         }
 
         public void Wait(Task task)
         {
+            //No remote IO so just call it
             IDatabase redisDb = GetDatabaseInternal();
-            _RetryPolicy.ExecuteWithRetry(() => redisDb.Wait(task));
+            redisDb.Wait(task);
         }
 
         public T Wait<T>(Task<T> task)
         {
+            //No remote IO so just call it
             IDatabase redisDb = GetDatabaseInternal();
-            return _RetryPolicy.ExecuteWithRetry<T>(() => redisDb.Wait<T>(task));
+            return redisDb.Wait<T>(task);
         }
 
         public void WaitAll(params Task[] tasks)
         {
+            //No remote IO so just call it
             IDatabase redisDb = GetDatabaseInternal();
-            _RetryPolicy.ExecuteWithRetry(() => redisDb.WaitAll(tasks));
+            redisDb.WaitAll(tasks);
         }
         #endregion IDatabase
     }

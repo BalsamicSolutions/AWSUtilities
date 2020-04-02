@@ -26,6 +26,12 @@ cloud Execution Strategy for Aurora, a MySql/Aurora index attribute, a full text
 forcing strings to upper case. There are corresponding query extensions (for FULLTEXT) and model builder extensions (for intalling attributes)
 as well as a DbContext base class that handles the implementation if you dont want to do it yourself.
 
+## RedisElastiCache
+This is a "cluster" capable implementation of the StackExchange IDatabase interface. The StackExchange implementation of the Redis connection
+is quite capapble of recovering from ElastiCache cluster reconfigurations. However individual calls are not as resilient. This
+class wrapps the underlying StackExchange client with a simple retry handler. A default retry handler is provided tgat deals with timeouts, you can 
+provide your own retry handler by implementing a custom RedisRetryPolicy. 
+
 ## ConsoleCore.Demos
 This is a console application with examples of each of the techniques. In order to demonstrate the EF attributes you need access to a MySQL
 or Aurora server in MySQL mode. Update the connectionstring in the appsettings.json file to point to that server. If you want to test the IAM

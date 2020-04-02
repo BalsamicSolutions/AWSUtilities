@@ -25,7 +25,7 @@ namespace ConsoleCore.Demos
 {
     internal class Program
     {
-        
+
 
         /// <summary>
         /// main entry point for .net core demos
@@ -37,6 +37,7 @@ namespace ConsoleCore.Demos
             bool efDemo = false;
             bool sqsDemo = false;
             bool sqsEnqueue = false;
+            bool redisDemo = false;
 
             if (null != args && args.Length >= 0)
             {
@@ -44,6 +45,7 @@ namespace ConsoleCore.Demos
                 {
                     string arg = args[argIdx].ToLowerInvariant().Trim(new char[] { '/', '-', ' ' });
                     if (arg == "sqs") sqsDemo = true;
+                    if (arg == "redis") redisDemo = true;
                     if (arg == "sqsenqueue") sqsEnqueue = true;
                     if (arg == "enqueue") sqsEnqueue = true;
                     if (arg == "ef") efDemo = true;
@@ -96,7 +98,11 @@ namespace ConsoleCore.Demos
             }
             else
             {
-                if (efDemo)
+                if (redisDemo)
+                {
+                    RedisConnectionTest();
+                }
+                else if (efDemo)
                 {
                     Console.WriteLine("Checking/Initializing demo database");
                     EntityFrameworkExamples.InitializeSampleDatabase();
@@ -116,6 +122,26 @@ namespace ConsoleCore.Demos
                 }
             }
 
+        }
+
+        /// <summary>
+        /// simple redis test using our wrapped system
+        /// </summary>
+        static void RedisConnectionTest()
+        {
+            var config = GetConfiguration();
+            string connectionString = config.GetValue<string>("ConnectionStrings:RedisDemo");
+            Console.WriteLine("Initializing RedisConnection");
+            RedisRetryPolicy retryPolicy = new DefaultRedisRetryPolicy();
+            IDatabase redisCache = new RedisElastiCache(connectionString,retryPolicy);
+            string testValue = Guid.NewGuid().ToString("N");
+            RedisKey rKey = "CONNECTTESTA";
+            RedisValue rValue = testValue;
+            redisCache.StringSet(rKey, rValue);
+            string responseValue = redisCache.StringGet(rKey);
+            bool returnValue = (testValue == (string)responseValue);
+            Console.WriteLine($"Redis test returned {returnValue}");
+            Console.WriteLine("Done with examples");
         }
 
         /// <summary>
