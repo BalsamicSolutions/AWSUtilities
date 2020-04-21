@@ -415,6 +415,25 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
+        /// get the dbcontext from a IQueryable
+        /// this is a cheat so we only use it internally
+        /// this one only works with EF 2.X
+        /// </summary>
+        /// <param name="dbSet"></param>
+        /// <returns></returns>
+        internal static DbContext GetDbContext(this IQueryable iQueryable)
+        {
+            BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Instance;
+            object queryCompiler = typeof(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider).GetField("_queryCompiler", bindingFlags).GetValue(iQueryable.Provider);
+            object queryContextFactory = queryCompiler.GetType().GetField("_queryContextFactory", bindingFlags).GetValue(queryCompiler);
+            object dependencies = typeof(Microsoft.EntityFrameworkCore.Query.RelationalQueryContextFactory).GetProperty("Dependencies", bindingFlags).GetValue(queryContextFactory);
+            Type queryContextDependencies = typeof(DbContext).Assembly.GetType(typeof(Microsoft.EntityFrameworkCore.Query.QueryContextDependencies).FullName);
+            object stateManagerProperty = queryContextDependencies.GetProperty("StateManager", bindingFlags | BindingFlags.Public).GetValue(dependencies);
+            Microsoft.EntityFrameworkCore.ChangeTracking.Internal.IStateManager stateManager = (Microsoft.EntityFrameworkCore.ChangeTracking.Internal.IStateManager)stateManagerProperty;
+            return stateManager.Context;
+        }
+
+        /// <summary>
         /// Enable MySQL using the Aurora ExecutionStrategy
         /// Instead of UseMySql in your OnConfiguring call
         /// optionsBuilder.UseAuroraExecutionStrategy(this,"connection string info")

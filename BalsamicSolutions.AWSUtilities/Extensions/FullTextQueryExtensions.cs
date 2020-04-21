@@ -3,8 +3,11 @@
 //   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
 //   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
 //  -----------------------------------------------------------------------------
+using BalsamicSolutions.AWSUtilities.EntityFramework;
 using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Internal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -38,17 +41,97 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
     {
         /// <summary>
         /// A natural language search interprets the search string as a phrase in natural human language
+        /// This model works further into the expression tree ,  the DbSet is retrieved from the
+        ///  thisQueryable so its bound to a specific version of Entity framework (this one is 2.X)
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisQueryable">the IQueryable from an enabled DbSet</param>
+        /// <param name="searchText">search command</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this IQueryable<TEntity> thisQueryable, string searchText) where TEntity : class
+        {
+            //warning this is a cheat
+            DbContext dbCtx = thisQueryable.GetDbContext();
+            DbSet<TEntity> dbSet = dbCtx.Set<TEntity>();
+            return dbSet.NaturalLanguageFullTextSearch(searchText);
+        }
+
+        /// <summary>
+        /// A natural language search interprets the search string as a phrase in natural human language
+        /// This model works further into the expression tree ,  the DbSet is retrieved from the
+        ///  thisQueryable so its bound to a specific version of Entity framework (this one is 2.X)
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisQueryable">the IQueryable from an enabled DbSet</param>
+        /// <param name="searchText">search command</param>
+        /// <param name="orderedComparer">an ordered list comparator returned for use in sorting the results in ranking order</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this IQueryable<TEntity> thisQueryable, string searchText, out OrderedResultSetComparer<TEntity> orderedComparer) where TEntity : class
+        {
+            //warning this is a cheat
+            DbContext dbCtx = thisQueryable.GetDbContext();
+            DbSet<TEntity> dbSet = dbCtx.Set<TEntity>();
+            return dbSet.NaturalLanguageFullTextSearch(searchText, out orderedComparer);
+        }
+
+        /// <summary>
+        /// A natural language search interprets the search string as a phrase in natural human language
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText">search command</param>
-        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        {
+            IQueryable<TEntity> returnValue = thisDbSet.NaturalLanguageFullTextSearch(searchText, out OrderedResultSetComparer<TEntity> orderedComparer);
+            return returnValue;
+        }
+
+        /// <summary>
+        /// A natural language search interprets the search string as a phrase in natural human language
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
+        /// <param name="searchText">search command</param>
+        /// <param name="orderedComparer">an ordered list comparator returned for use in sorting the results in ranking order</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, out OrderedResultSetComparer<TEntity> orderedComparer) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false, orderByScore);
+            IQueryable<TEntity> returnValue = thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false, true, out orderedComparer);
+            return returnValue;
+        }
+
+        /// <summary>
+        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
+        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisQueryable">the IQueryable from an enabled DbSet</param>
+        /// <param name="searchText">search command</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this IQueryable<TEntity> thisQueryable, string searchText) where TEntity : class
+        {
+            DbContext dbCtx = thisQueryable.GetDbContext();
+            DbSet<TEntity> dbSet = dbCtx.Set<TEntity>();
+            return dbSet.NaturalLanguageFullTextSearchWithQueryExpansion(searchText);
+        }
+
+        /// <summary>
+        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
+        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisQueryable">the IQueryable from an enabled DbSet</param>
+        /// <param name="searchText">search command</param>
+        /// <param name="orderedComparer">an ordered list comparator returned for use in sorting the results in ranking order</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this IQueryable<TEntity> thisQueryable, string searchText, out OrderedResultSetComparer<TEntity> orderedComparer) where TEntity : class
+        {
+            DbContext dbCtx = thisQueryable.GetDbContext();
+            DbSet<TEntity> dbSet = dbCtx.Set<TEntity>();
+            return dbSet.NaturalLanguageFullTextSearchWithQueryExpansion(searchText, out orderedComparer);
         }
 
         /// <summary>
@@ -58,13 +141,43 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText">search command</param>
-        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
-        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
+        {
+            IQueryable<TEntity> returnValue = thisDbSet.NaturalLanguageFullTextSearchWithQueryExpansion(searchText, out OrderedResultSetComparer<TEntity> orderedComparer);
+            return returnValue;
+        }
+
+        /// <summary>
+        /// A natural language with query expansion search is a modification of a natural language search. The search string is used to perform a natural language search.
+        /// Then words from the most relevant rows returned by the search are added to the search string and the search is done again. The query returns the rows from the second search.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
+        /// <param name="searchText">search command</param>
+        /// <param name="orderedComparer">an ordered list comparator returned for use in sorting the results in ranking order</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, out OrderedResultSetComparer<TEntity> orderedComparer) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true, orderByScore);
+            IQueryable<TEntity> returnValue = thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true, true, out orderedComparer);
+            return returnValue;
+        }
+
+        /// <summary>
+        /// A boolean search interprets the search string using the rules of a special query language. The string contains the words to search for.
+        /// It can also contain operators that specify requirements such that a word must be present or absent in matching rows, or that it should be weighted higher or lower than usual.
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="thisQueryable">the IQueryable from an enabled DbSet</param>
+        /// <param name="searchText">search command</param>
+        /// <returns></returns>
+        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this IQueryable<TEntity> thisQueryable, string searchText) where TEntity : class
+        {
+            DbContext dbCtx = thisQueryable.GetDbContext();
+            DbSet<TEntity> dbSet = dbCtx.Set<TEntity>();
+            return dbSet.BooleanFullTextContains(searchText);
         }
 
         /// <summary>
@@ -74,13 +187,13 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="thisDbSet">the DbSet from an enabled DbContext</param>
         /// <param name="searchText">search command</param>
-        ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
-        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, bool orderByScore = false) where TEntity : class
+        public static IQueryable<TEntity> BooleanFullTextContains<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             string[] columnNames = GetFullTextColumnNames(entityType);
-            return thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false, orderByScore);
+            IQueryable<TEntity> returnValue = thisDbSet.FullTextSearchInternal(searchText, columnNames, true, false, false, out OrderedResultSetComparer<TEntity> orderedComparer);
+            return returnValue;
         }
 
         /// <summary>
@@ -91,7 +204,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <param name="searchText">search command</param>
         ///<param name="orderByScore">order the results by score</param>
         /// <returns></returns>
-        private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore) where TEntity : class
+        private static IQueryable<TEntity> FullTextSearchInternal<TEntity>(this DbSet<TEntity> thisDbSet, string searchText, string[] columnNames, bool booleanMode, bool queryExpansion, bool orderByScore, out OrderedResultSetComparer<TEntity> orderedComparer) where TEntity : class
         {
             Type entityType = typeof(TEntity);
             IQueryable<TEntity> queryableDbSet = thisDbSet as IQueryable<TEntity>;
@@ -124,49 +237,54 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             Expression comparisonCondition = null;
             LambdaExpression lambdaExpression = null;
             MethodInfo containsMethod = null;
-
+            orderedComparer = null;
             if (keyColumnTypes[0] == typeof(Guid))
             {
-                HashSet<Guid> containedIn = ConvertUntypedCollectionToTypedHashSet<Guid>(untypedResults);
-                containsMethod = typeof(HashSet<Guid>).GetMethod("Contains", new Type[] { typeof(Guid) });
+                List<Guid> containedIn = ConvertUntypedCollectionToTypedList<Guid>(untypedResults);
+                containsMethod = typeof(List<Guid>).GetMethod("Contains", new Type[] { typeof(Guid) });
                 comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
                 lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                if (orderByScore) orderedComparer = new OrderedResultSetComparer<TEntity>(containedIn, entityKeyNames[0]);
             }
             else if (keyColumnTypes[0] == typeof(string))
             {
-                HashSet<string> containedIn = ConvertUntypedCollectionToTypedHashSet<string>(untypedResults);
-                containsMethod = typeof(HashSet<string>).GetMethod("Contains", new Type[] { typeof(string) });
+                List<string> containedIn = ConvertUntypedCollectionToTypedList<string>(untypedResults);
+                containsMethod = typeof(List<string>).GetMethod("Contains", new Type[] { typeof(string) });
                 comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
                 lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                if (orderByScore) orderedComparer = new OrderedResultSetComparer<TEntity>(containedIn, entityKeyNames[0]);
             }
             else if (keyColumnTypes[0] == typeof(int))
             {
-                HashSet<int> containedIn = ConvertUntypedCollectionToTypedHashSet<int>(untypedResults);
-                containsMethod = typeof(HashSet<int>).GetMethod("Contains", new Type[] { typeof(int) });
+                List<int> containedIn = ConvertUntypedCollectionToTypedList<int>(untypedResults);
+                containsMethod = typeof(List<int>).GetMethod("Contains", new Type[] { typeof(int) });
                 comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
                 lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                if (orderByScore) orderedComparer = new OrderedResultSetComparer<TEntity>(containedIn, entityKeyNames[0]);
             }
             else if (keyColumnTypes[0] == typeof(Int64))
             {
-                HashSet<Int64> containedIn = ConvertUntypedCollectionToTypedHashSet<Int64>(untypedResults);
-                containsMethod = typeof(HashSet<Int64>).GetMethod("Contains", new Type[] { typeof(Int64) });
+                List<Int64> containedIn = ConvertUntypedCollectionToTypedList<Int64>(untypedResults);
+                containsMethod = typeof(List<Int64>).GetMethod("Contains", new Type[] { typeof(Int64) });
                 comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
                 lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                if (orderByScore) orderedComparer = new OrderedResultSetComparer<TEntity>(containedIn, entityKeyNames[0]);
             }
             else if (keyColumnTypes[0] == typeof(Int16))
             {
-                HashSet<Int16> containedIn = ConvertUntypedCollectionToTypedHashSet<Int16>(untypedResults);
-                containsMethod = typeof(HashSet<Int16>).GetMethod("Contains", new Type[] { typeof(Int16) });
+                List<Int16> containedIn = ConvertUntypedCollectionToTypedList<Int16>(untypedResults);
+                containsMethod = typeof(List<Int16>).GetMethod("Contains", new Type[] { typeof(Int16) });
                 comparisonCondition = Expression.Call(Expression.Constant(containedIn), containsMethod, memberPropertyAccess);
                 lambdaExpression = Expression.Lambda(comparisonCondition, parameterExpression);
+                if (orderByScore) orderedComparer = new OrderedResultSetComparer<TEntity>(containedIn, entityKeyNames[0]);
             }
             else
             {
                 throw new FullTextQueryException("unsupported primary key type " + keyColumnTypes[0].Name + " for " + tableName);
             }
-          
+
+            //now update the query expression to a "contains" for the type of the object in the list we just returned
             MethodCallExpression conditionResult = Expression.Call(typeof(Queryable), "Where", new[] { queryableDbSet.ElementType }, queryableDbSet.Expression, lambdaExpression);
-            //TODO handle the OrderByScore
             return queryableDbSet.Provider.CreateQuery<TEntity>(conditionResult);
         }
 
@@ -236,9 +354,9 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
 		/// <typeparam name="T">type of objects in the untypedList</typeparam>
 		/// <param name="untypedList">collection of untyped objects</param>
 		/// <returns>Typed collection</returns>
-		private static HashSet<T> ConvertUntypedCollectionToTypedHashSet<T>(ArrayList untypedList)
+		private static List<T> ConvertUntypedCollectionToTypedList<T>(ArrayList untypedList)
         {
-            HashSet<T> returnValue = new HashSet<T>();
+            List<T> returnValue = new List<T>();
             foreach (object untypedObject in untypedList)
             {
                 returnValue.Add((T)untypedObject);

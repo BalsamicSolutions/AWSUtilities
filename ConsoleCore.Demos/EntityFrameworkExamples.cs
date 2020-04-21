@@ -11,6 +11,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using BalsamicSolutions.AWSUtilities.EntityFramework;
 
 namespace ConsoleCore.Demos
 {
@@ -60,12 +61,20 @@ namespace ConsoleCore.Demos
                                                                              .Where(nt => nt.Id < 50).ToList();
                 Console.WriteLine($"combined fulltext and Where found {matchThree.Count} with complex rules '+ignorant +marriage -wife' ");
 
-                List<NoteWithFulltext> matchFour = dataCtx.NotesWithFulltext.NaturalLanguageFullTextSearch("what the hell?").ToList();
+                //Search an pull back a sorter to sort the results by rank
+                List<NoteWithFulltext> matchFourPointOne = dataCtx.NotesWithFulltext.NaturalLanguageFullTextSearch("what the hell?", out OrderedResultSetComparer<NoteWithFulltext> rankSorter).Where(f => f.Id > 0).ToList();
+                Console.WriteLine($"Natural language fulltext  found {matchFourPointOne.Count} with complex rules 'what the hell?' ");
+                matchFourPointOne.Sort(rankSorter);
+
+                List<NoteWithFulltext> matchFour = dataCtx.NotesWithFulltext.Where(f => f.Id > 0).NaturalLanguageFullTextSearch( "what the hell?").ToList();
                 Console.WriteLine($"Natural language fulltext  found {matchFour.Count} with complex rules 'what the hell?' ");
 
-                //search again with natural language query expansion, ordered by score
-                List<NoteWithFulltext> matchFive = dataCtx.NotesWithFulltext.NaturalLanguageFullTextSearchWithQueryExpansion("what the hell?", true).ToList();
+                //search again with natural language query expansion, ordered by score 
+                List<NoteWithFulltext> matchFive = dataCtx.NotesWithFulltext.NaturalLanguageFullTextSearchWithQueryExpansion("what the hell?").ToList();
+
                 Console.WriteLine($"Natural language expanded fulltext  found {matchFive.Count} with complex rules 'what the hell?' ");
+
+
             }
         }
 
