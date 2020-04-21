@@ -65,8 +65,9 @@ namespace ConsoleCore.Demos
                 List<NoteWithFulltext> matchFourPointOne = dataCtx.NotesWithFulltext.NaturalLanguageFullTextSearch("what the hell?", out OrderedResultSetComparer<NoteWithFulltext> rankSorter).Where(f => f.Id > 0).ToList();
                 Console.WriteLine($"Natural language fulltext  found {matchFourPointOne.Count} with complex rules 'what the hell?' ");
                 matchFourPointOne.Sort(rankSorter);
+                Console.WriteLine($"Results now sorted in ranking order ");
 
-                List<NoteWithFulltext> matchFour = dataCtx.NotesWithFulltext.Where(f => f.Id > 0).NaturalLanguageFullTextSearch( "what the hell?").ToList();
+                List<NoteWithFulltext> matchFour = dataCtx.NotesWithFulltext.Where(f => f.Id > 0).NaturalLanguageFullTextSearch("what the hell?").ToList();
                 Console.WriteLine($"Natural language fulltext  found {matchFour.Count} with complex rules 'what the hell?' ");
 
                 //search again with natural language query expansion, ordered by score 

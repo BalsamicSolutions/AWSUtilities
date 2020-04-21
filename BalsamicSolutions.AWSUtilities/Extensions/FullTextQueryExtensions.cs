@@ -83,7 +83,9 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <returns></returns>
         public static IQueryable<TEntity> NaturalLanguageFullTextSearch<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
         {
-            IQueryable<TEntity> returnValue = thisDbSet.NaturalLanguageFullTextSearch(searchText, out OrderedResultSetComparer<TEntity> orderedComparer);
+            Type entityType = typeof(TEntity);
+            string[] columnNames = GetFullTextColumnNames(entityType);
+            IQueryable<TEntity> returnValue = thisDbSet.FullTextSearchInternal(searchText, columnNames, false, false, false, out OrderedResultSetComparer<TEntity> orderedComparer);
             return returnValue;
         }
 
@@ -144,7 +146,9 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <returns></returns>
         public static IQueryable<TEntity> NaturalLanguageFullTextSearchWithQueryExpansion<TEntity>(this DbSet<TEntity> thisDbSet, string searchText) where TEntity : class
         {
-            IQueryable<TEntity> returnValue = thisDbSet.NaturalLanguageFullTextSearchWithQueryExpansion(searchText, out OrderedResultSetComparer<TEntity> orderedComparer);
+            Type entityType = typeof(TEntity);
+            string[] columnNames = GetFullTextColumnNames(entityType);
+            IQueryable<TEntity> returnValue = thisDbSet.FullTextSearchInternal(searchText, columnNames, false, true, false, out OrderedResultSetComparer<TEntity> orderedComparer);
             return returnValue;
         }
 
