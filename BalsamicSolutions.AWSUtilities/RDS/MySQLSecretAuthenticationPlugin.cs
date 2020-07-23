@@ -5,7 +5,7 @@
 //  -----------------------------------------------------------------------------
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
-using BalsamicSolutions.AWSUtilities.Extensions;
+using ReportingXpress.Common.Extensions;
 using MySql.Data.MySqlClient;
 using MySql.Data.MySqlClient.Authentication;
 using System;
@@ -14,6 +14,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
 
 namespace BalsamicSolutions.AWSUtilities.RDS
 {
@@ -22,6 +24,9 @@ namespace BalsamicSolutions.AWSUtilities.RDS
     /// this uses the AWS Secrets manager to extract the password for use by the
     /// connection string. This one does not use plain text password, instead it
     /// uses SHA256, mostly  this code was lifted from the MySql.Data.MySqlClient.Authentication.Sha256AuthenticationPlugin
+    /// a user for access might be created with this CREATE USER 'sha256user'@'%'  IDENTIFIED WITH sha256_password BY 'P@$$w0rd!';
+    /// The secret (by default) would be named by the name of the server then the user (for example)
+    /// rptprod.reportingxpress.org/sha256user and the key pair would be password P@$$w0rd!
     /// </summary>
     public class MySQLSecretAuthenticationPlugin : MySqlAuthenticationPlugin
     {
@@ -43,24 +48,14 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             </MySQL>
        */
 
-
-        [Serializable]
-        public sealed class MySQLSecretException : System.Data.Common.DbException
-        {
-            internal MySQLSecretException(string msg)
-            : base(msg)
-            {
-            }
-        }
-
         /// <summary>
         /// The byte array representation of the public key provided by the server.
         /// </summary>
         protected byte[] rawPubkey;
 
-        private static object _LockProxy = new object();
-        private DateTime _Expires = DateTime.MinValue;
-        private string _Password = null;
+        private static readonly Dictionary<string, CachedPassword> _Cache = new Dictionary<string, CachedPassword>();
+
+        private static readonly object _LockProxy = new object();
 
         public override string PluginName
         {
@@ -76,61 +71,23 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         {
             get
             {
-                lock(_LockProxy)
+                if (!Settings.Password.IsNullOrWhiteSpace())
                 {
-                    if(_Password.IsNullOrEmpty() || _Expires <DateTime.UtcNow)
+                    return Settings.Password;
+                }
+                else
+                {
+                    string secretName = SecretName;
+                    if (secretName.IndexOf('{') > -1)
                     {
-                        string secretName = SecretName;
-                        if(secretName.IndexOf('{') > -1)
-                        {
-                            //the secret name is a template
-                            secretName = secretName.Replace("{server}", Settings.Server);
-                            secretName = secretName.Replace("{userid}", Settings.UserID);
-                            secretName = secretName.Replace("{database}", Settings.Database);
-                        }
-                        _Password = GetSecretPassword(secretName);
-                        _Expires = DateTime.UtcNow.AddMinutes(5);
+                        //the secret name is a template
+                        secretName = secretName.Replace("{server}", Settings.Server);
+                        secretName = secretName.Replace("{userid}", Settings.UserID);
+                        secretName = secretName.Replace("{database}", Settings.Database);
                     }
+                    return GetSecretPassword(secretName);
                 }
-                return _Password;
             }
-        }
-
-        /// <summary>
-        /// get the secret from AWS Secrets manager
-        /// </summary>
-        /// <param name="secretName"></param>
-        /// <returns></returns>
-        private string GetSecretPassword(string secretName)
-        {
-            string returnValue = null;
-            using (AmazonSecretsManagerClient secretsClient = new AmazonSecretsManagerClient())
-            {
-                var awsRequest = new GetSecretValueRequest
-                {
-                    SecretId = secretName
-                };
-                GetSecretValueResponse awsResponse = null;
-                try
-                {
-                    awsResponse = Task.Run(async () => await secretsClient.GetSecretValueAsync(awsRequest)).Result;
-                    returnValue = awsResponse.SecretString;
-                }
-                catch (ResourceNotFoundException)
-                {
-                    throw new MySQLSecretException("The requested secret " + secretName + " was not found");
-                }
-                catch (InvalidRequestException e)
-                {
-                    throw new MySQLSecretException("The request was invalid due to: " + e.Message);
-                }
-                catch (InvalidParameterException e)
-                {
-                    throw new MySQLSecretException("The request had invalid params: " + e.Message);
-                }
-
-            }
-            return returnValue;
         }
 
         public override object GetPassword()
@@ -138,7 +95,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             if (Settings.SslMode != MySqlSslMode.None)
             {
                 // send as clear text, since the channel is already encrypted
-                byte[] passBytes = Encoding.GetBytes(_Password);
+                byte[] passBytes = Encoding.GetBytes(Password);
                 byte[] buffer = new byte[passBytes.Length + 2];
                 Array.Copy(passBytes, 0, buffer, 1, passBytes.Length);
                 buffer[0] = (byte)(passBytes.Length + 1);
@@ -147,7 +104,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             }
             else
             {
-                if (_Password.Length == 0) return new byte[1];
+                if (Password.Length == 0) return new byte[1];
                 // send RSA encrypted, since the channel is not protected
                 else if (rawPubkey == null) return new byte[] { 0x01 };
                 else if (!Settings.AllowPublicKeyRetrieval)
@@ -156,7 +113,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
                 }
                 else
                 {
-                    byte[] bytes = GetRsaPassword(_Password, AuthenticationData, rawPubkey);
+                    byte[] bytes = GetRsaPassword(Password, AuthenticationData, rawPubkey);
                     if (bytes != null && bytes.Length == 1 && bytes[0] == 0) return null;
                     return bytes;
                 }
@@ -193,7 +150,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             if (Settings.SslMode != MySqlSslMode.None)
             {
                 // Send as clear text, since the channel is already encrypted.
-                byte[] passBytes = Encoding.GetBytes(_Password);
+                byte[] passBytes = Encoding.GetBytes(Password);
                 byte[] buffer = new byte[passBytes.Length + 1];
                 Array.Copy(passBytes, 0, buffer, 0, passBytes.Length);
                 buffer[passBytes.Length] = 0;
@@ -211,6 +168,86 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             RSACryptoServiceProvider rsa = MySqlPemReader.ConvertPemToRSAProvider(rawPublicKey);
             if (rsa == null) throw new MySQLSecretException("Unable To ReadRSA Key");
             return rsa.Encrypt(obfuscated, true);
+        }
+
+        /// <summary>
+        /// get the secret from AWS Secrets manager
+        /// </summary>
+        /// <param name="secretName"></param>
+        /// <returns></returns>
+        private string GetSecretPassword(string secretName)
+        {
+            string[] nameParts = secretName.Split('/');
+            string jsonKey = nameParts[nameParts.Length - 1];
+            secretName = string.Join("/", nameParts, 0, nameParts.Length - 1);
+            lock (_LockProxy)
+            {
+                if (_Cache.TryGetValue(secretName, out CachedPassword cachedPassword))
+                {
+                    if (cachedPassword.Expires < DateTime.UtcNow)
+                    {
+                        return cachedPassword.Password;
+                    }
+                    else
+                    {
+                        _Cache.Remove(secretName);
+                    }
+                }
+            }
+            string returnValue = null;
+            using (AmazonSecretsManagerClient secretsClient = Utilities.SystemSecretsManagerClient())
+            {
+                var awsRequest = new GetSecretValueRequest
+                {
+                    SecretId = secretName,
+                    VersionStage = "AWSCURRENT",
+                };
+                GetSecretValueResponse awsResponse = null;
+                try
+                {
+                    awsResponse = Task.Run(async () => await secretsClient.GetSecretValueAsync(awsRequest)).Result;
+                    string jsonText = awsResponse.SecretString;
+                    dynamic jsonObj = jsonText.FromJson();
+                    returnValue = jsonObj[jsonKey];
+                    CachedPassword cachedPassword = new CachedPassword
+                    {
+                        Password = returnValue,
+                        Expires = DateTime.UtcNow.AddMinutes(5)
+                    };
+                    lock (_LockProxy)
+                    {
+                        _Cache[secretName] = cachedPassword;
+                    }
+                }
+                catch (ResourceNotFoundException)
+                {
+                    throw new MySQLSecretException("The requested secret " + secretName + " was not found");
+                }
+                catch (InvalidRequestException e)
+                {
+                    throw new MySQLSecretException("The request was invalid due to: " + e.Message);
+                }
+                catch (InvalidParameterException e)
+                {
+                    throw new MySQLSecretException("The request had invalid params: " + e.Message);
+                }
+            }
+            return returnValue;
+        }
+
+        [Serializable]
+        public sealed class MySQLSecretException : System.Data.Common.DbException
+        {
+            internal MySQLSecretException(string msg)
+            : base(msg)
+            {
+            }
+        }
+
+        private class CachedPassword
+        {
+            public DateTime Expires { get; set; }
+            public string Password { get; set; }
         }
     }
 
