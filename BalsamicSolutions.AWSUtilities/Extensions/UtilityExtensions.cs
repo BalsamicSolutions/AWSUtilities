@@ -73,6 +73,25 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         }
 
         /// <summary>
+        /// just what it says, case insensitive starts with check
+        /// </summary>
+        /// <param name="thisStr"></param>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static bool CaseInsensitiveStartsWith(this String thisStr, string compareTo)
+        {
+            if (null == thisStr && null == compareTo)
+            {
+                return true;
+            }
+            if (null == thisStr || null == compareTo)
+            {
+                return false;
+            }
+            return thisStr.StartsWith(compareTo, StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        /// <summary>
 		/// shorten a string to a provided maximum  length
 		/// </summary>
 		/// <param name="thisStr"></param>

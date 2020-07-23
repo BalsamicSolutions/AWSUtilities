@@ -6,8 +6,9 @@
 using MySql.Data.MySqlClient.Authentication;
 using System;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Text;
-using Ubiety.Dns.Core;
+ 
 
 namespace BalsamicSolutions.AWSUtilities.RDS
 {
@@ -47,24 +48,22 @@ namespace BalsamicSolutions.AWSUtilities.RDS
 
         /// <summary>
         /// checks to see if the name has a cname
-        /// we use Ubiety because MySQL uses it and
-        /// we dont want to introduce a new DNS class
+        /// by resolving all the way to the last hostname
         /// </summary>
         /// <param name="hostName"></param>
         /// <returns></returns>
         public static string GetCNameOfHostOrNull(string hostName)
         {
  
-            Resolver dnsLookup = ResolverBuilder.Begin().SetTimeout(1000)
-                                                        .SetRetries(3)
-                                                        .UseRecursion()
-                                                        .Build();
             string returnValue = null;
-            Response dnsResponse = dnsLookup.Query(hostName, Ubiety.Dns.Core.Common.QuestionType.CNAME, Ubiety.Dns.Core.Common.QuestionClass.IN);
-            List<Ubiety.Dns.Core.Records.General.RecordCname> cnameRecords = dnsResponse.GetRecords<Ubiety.Dns.Core.Records.General.RecordCname>();
-            if (cnameRecords.Count > 0)
+            try
             {
-                returnValue = cnameRecords[0].Cname;
+                System.Net.IPHostEntry ipHost = System.Net.Dns.GetHostEntry(hostName);
+                returnValue=ipHost.HostName;
+            }
+            catch(SocketException)
+            {
+                returnValue = null;
             }
 
             return returnValue;
@@ -157,7 +156,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         /// handles the "cheater" way of installing without a config file
         /// </summary>
         /// <param name="pluginTypeAssemblyQualifiedName"></param>
-        private static void RegisterPlugin(string pluginTypeAssemblyQualifiedName)
+        private static void RegisterPlugin(string pluginTypeAssemblyQualifiedName, string plugInInfo)
         {
             Type t = typeof(MySqlAuthenticationPlugin);
             Type pluginManagerType = t.Assembly.GetType("MySql.Data.MySqlClient.Authentication.AuthenticationPluginManager");
@@ -166,7 +165,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
             System.Reflection.PropertyInfo piItem = obj.GetType().GetProperty("Item");
             Type pluginType = t.Assembly.GetType("MySql.Data.MySqlClient.Authentication.PluginInfo");
             object pluginInfo = Activator.CreateInstance(pluginType, pluginTypeAssemblyQualifiedName);
-            piItem.SetValue(obj, pluginInfo, new object[] { "mysql_clear_password" });
+            piItem.SetValue(obj, pluginInfo, new object[] { plugInInfo });
         }
 
         /// <summary>
@@ -174,7 +173,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         /// </summary>
         public static void RegisterUserPlugin()
         {
-            RegisterPlugin(typeof(MySQLUserAuthenticationPlugin).AssemblyQualifiedName);
+            RegisterPlugin(typeof(MySQLUserAuthenticationPlugin).AssemblyQualifiedName, "mysql_clear_password");
         }
 
         /// <summary>
@@ -182,7 +181,15 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         /// </summary>
         public static void RegisterRolePlugin()
         {
-            RegisterPlugin(typeof(MySQLRoleAuthenticationPlugin).AssemblyQualifiedName);
+            RegisterPlugin(typeof(MySQLRoleAuthenticationPlugin).AssemblyQualifiedName, "mysql_clear_password");
+        }
+
+        /// <summary>
+        /// registers the role plug in directly
+        /// </summary>
+        public static void RegisterSecretPlugin()
+        {
+            RegisterPlugin(typeof(MySQLSecretAuthenticationPlugin).AssemblyQualifiedName, "sha256_password");
         }
 
         /// <summary>

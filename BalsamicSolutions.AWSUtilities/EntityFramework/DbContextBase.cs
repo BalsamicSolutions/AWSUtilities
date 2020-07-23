@@ -41,7 +41,7 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         public DbContextBase(DbContextOptions options)
                : base(options)
         {
-             InstallIAMHandler();
+            InstallIAMHandler();
         }
 
         /// <summary>
@@ -82,6 +82,20 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
                         else if (iamRole.CaseInsensitiveEquals("Role"))
                         {
                             MySqlAuthenticationPluginBase.RegisterRolePlugin();
+                        }
+                        else if (iamRole.CaseInsensitiveStartsWith("Secret"))
+                        {
+                            //pickup the secret name, the default is a server/user specific password
+                            MySQLSecretAuthenticationPlugin.SecretName = "Password:{server}:{userid}";
+                            string[] nameParts = iamRole.Split(':');
+                            if(nameParts.Length>0)
+                            {
+                                //if the name is encoded like Secret:Password:{server}:{userid}:{database}
+                                //or for a shared password Secret:Password:{server}:{userid}
+                                MySQLSecretAuthenticationPlugin.SecretName = string.Join(":",nameParts,1,nameParts.Length -1);
+                            }
+                            
+                            MySqlAuthenticationPluginBase.RegisterSecretPlugin();
                         }
                         _IamChecked = true;
                     }

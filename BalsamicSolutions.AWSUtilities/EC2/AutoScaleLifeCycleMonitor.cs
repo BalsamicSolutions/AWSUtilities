@@ -490,11 +490,12 @@ namespace BalsamicSolutions.AWSUtilities.EC2
                     _InTerminateWait = true;
                     refCount = _RefCount;
                 }
-                _Timer.Dispose();
-                _Timer = null;
-                OnBeforeTerminate(new EventArgs());
+
                 if (refCount <= 0)
                 {
+                    _Timer.Dispose();
+                    _Timer = null;
+                    OnBeforeTerminate(new EventArgs());
                     //we will signal that we are done
                     TryCompleteTerminateWait();
                 }
@@ -563,12 +564,20 @@ namespace BalsamicSolutions.AWSUtilities.EC2
 
             lock (_LockProxy)
             {
-                //if we have no references and no activity for our window period
-                TimeSpan timeSpan = DateTime.Now - _LastActivity;
-                if (timeSpan.Minutes >= AutoScaleGroupInstanceIdleTerminationWaitInMinutes)
+                long refCount = 0;
+                lock (_LockProxy)
                 {
-                    //then shut it down
-                    shutItAllDown = true;
+                    refCount = _RefCount;
+                }
+                if (refCount <= 0)
+                {
+                    //if we have no references and no activity for our window period
+                    TimeSpan timeSpan = DateTime.Now - _LastActivity;
+                    if (timeSpan.Minutes >= AutoScaleGroupInstanceIdleTerminationWaitInMinutes)
+                    {
+                        //then shut it down
+                        shutItAllDown = true;
+                    }
                 }
             }
             if (shutItAllDown)
