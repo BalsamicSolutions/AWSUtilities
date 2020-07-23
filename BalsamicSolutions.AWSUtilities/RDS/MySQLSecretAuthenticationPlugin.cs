@@ -5,7 +5,7 @@
 //  -----------------------------------------------------------------------------
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
-using ReportingXpress.Common.Extensions;
+ 
 using MySql.Data.MySqlClient;
 using MySql.Data.MySqlClient.Authentication;
 using System;
@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using BalsamicSolutions.AWSUtilities.Extensions;
 
 namespace BalsamicSolutions.AWSUtilities.RDS
 {
@@ -195,7 +196,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
                 }
             }
             string returnValue = null;
-            using (AmazonSecretsManagerClient secretsClient = Utilities.SystemSecretsManagerClient())
+            using (AmazonSecretsManagerClient secretsClient = new AmazonSecretsManagerClient())
             {
                 var awsRequest = new GetSecretValueRequest
                 {
@@ -207,7 +208,7 @@ namespace BalsamicSolutions.AWSUtilities.RDS
                 {
                     awsResponse = Task.Run(async () => await secretsClient.GetSecretValueAsync(awsRequest)).Result;
                     string jsonText = awsResponse.SecretString;
-                    dynamic jsonObj = jsonText.FromJson();
+                    dynamic jsonObj = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonText);  
                     returnValue = jsonObj[jsonKey];
                     CachedPassword cachedPassword = new CachedPassword
                     {
