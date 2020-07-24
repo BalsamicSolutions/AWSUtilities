@@ -187,8 +187,11 @@ namespace BalsamicSolutions.AWSUtilities.RDS
         /// <summary>
         /// registers the role plug in directly
         /// </summary>
-        public static void RegisterSecretPlugin()
+        public static void RegisterSecretsPlugin(string secretName, string publicKeyFilePath)
         {
+            MySQLSecretAuthenticationPlugin.PublicKeyFilePath = publicKeyFilePath;
+            MySQLSecretAuthenticationPlugin.SecretNameTemplate = secretName;
+
             RegisterPlugin(typeof(MySQLSecretAuthenticationPlugin).AssemblyQualifiedName, "sha256_password");
         }
 

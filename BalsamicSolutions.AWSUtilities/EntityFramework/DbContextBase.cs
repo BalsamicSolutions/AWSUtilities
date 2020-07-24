@@ -75,6 +75,10 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
                     if (!_IamChecked)
                     {
                         string iamRole = Configuration.GetValue<string>("appSettings:RDSIAMMode");
+                         if (iamRole.IsNullOrWhiteSpace())
+                        {
+                            iamRole = System.Environment.GetEnvironmentVariable("RDSIAMMode");
+                        }
                         if (iamRole.CaseInsensitiveEquals("User"))
                         {
                             MySqlAuthenticationPluginBase.RegisterUserPlugin();
@@ -86,16 +90,20 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
                         else if (iamRole.CaseInsensitiveStartsWith("Secret"))
                         {
                             //pickup the secret name, the default is a server/user specific password
-                            string secretName = "{server}/{userid}/password";
+                            //the last element is the json key for the response, the leading
+                            //items are the secret name
+                            string secretName = "{server}/{userid}";
                             string[] nameParts = iamRole.Split(':');
-                            if(nameParts.Length>0)
+                            if (nameParts.Length > 0)
                             {
-                                //if the name is encoded like Secret:Password/{server}/{userid}/{database}
-                                //or for a shared password Secret:{server}/{userid}/password
-                                MySQLSecretAuthenticationPlugin.SecretName = secretName = nameParts[1];
+                                //if the name is encoded like Secret:{server}/{userid}/{database}
+                                //or for a shared password Secret:{server}/{userid}
+                                secretName = nameParts[1];
                             }
-                            
-                            MySqlAuthenticationPluginBase.RegisterSecretPlugin();
+                            //the SHA256 public key can come locally or from the secret, so check for an 
+                            //appsetting with the path in it
+                            string publicKeyFilePath = Configuration.GetValue<string>("appSettings:MySQLPublicKeyFilePath");
+                            MySqlAuthenticationPluginBase.RegisterSecretsPlugin(secretName, publicKeyFilePath);
                         }
                         _IamChecked = true;
                     }

@@ -120,6 +120,16 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
 		}
 
         /// <summary>
+        /// Deserializes json text to a dynamic JObject
+        /// </summary>
+        /// <param name="thisStr"></param>
+        /// <returns></returns>
+        public static object FromJson(this string thisStr)
+        {
+            return Newtonsoft.Json.JsonConvert.DeserializeObject(thisStr);
+        }
+
+        /// <summary>
         /// Deserializes json text to a typed object
         /// </summary>
         /// <typeparam name="T"></typeparam>
