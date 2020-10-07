@@ -7,7 +7,7 @@ using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
 using BalsamicSolutions.AWSUtilities.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using MySql.Data.EntityFrameworkCore.Infraestructure;
+using MySql.Data.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Linq;
 using System.Collections.Generic;

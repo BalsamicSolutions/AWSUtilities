@@ -8,30 +8,36 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Demo.Data.Migrations
 {
     [DbContext(typeof(DemoDataContext))]
-    [Migration("20200315111131_InitialMigration")]
-    partial class InitialMigration
+    [Migration("20201007143158_InitialCreate")]
+    partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
+                .HasAnnotation("ProductVersion", "3.1.8")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("Demo.Data.Contact", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
 
                     b.Property<string>("CellPhone")
+                        .HasColumnType("varchar(128)")
                         .HasMaxLength(128);
 
                     b.Property<string>("Email")
+                        .HasColumnType("varchar(128)")
                         .HasMaxLength(128);
 
                     b.Property<string>("FirstName")
+                        .HasColumnType("varchar(128)")
                         .HasMaxLength(128);
 
                     b.Property<string>("LastName")
+                        .HasColumnType("varchar(128)")
                         .HasMaxLength(128);
 
                     b.HasKey("Id");
@@ -42,12 +48,15 @@ namespace Demo.Data.Migrations
             modelBuilder.Entity("Demo.Data.NoteWithFulltext", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Note")
+                        .HasColumnType("varchar(2048)")
                         .HasMaxLength(2048);
 
                     b.Property<string>("Topic")
+                        .HasColumnType("varchar(512)")
                         .HasMaxLength(512);
 
                     b.HasKey("Id");
@@ -58,12 +67,15 @@ namespace Demo.Data.Migrations
             modelBuilder.Entity("Demo.Data.NoteWithoutFulltext", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd();
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Note")
+                        .HasColumnType("varchar(2048)")
                         .HasMaxLength(2048);
 
                     b.Property<string>("Topic")
+                        .HasColumnType("varchar(512)")
                         .HasMaxLength(512);
 
                     b.HasKey("Id");

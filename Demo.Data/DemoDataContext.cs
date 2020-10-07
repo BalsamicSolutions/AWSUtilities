@@ -7,7 +7,7 @@ using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
 using BalsamicSolutions.AWSUtilities.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using MySql.Data.EntityFrameworkCore.Infraestructure;
+using MySql.Data.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -22,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 namespace Demo.Data
 {
     /// <summary>
+    ///  Add-Migration -Name InitialCreate -OutputDir Migrations -Context DemoDataContext -Project Demo.Data -StartupProject ConsoleCore.Demos
     /// data context for our demos.
     /// </summary>
     public class DemoDataContext : DbContextBase

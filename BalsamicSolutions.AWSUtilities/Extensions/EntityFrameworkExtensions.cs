@@ -3,6 +3,7 @@
 //   THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF  ANY KIND, EITHER
 //   EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR
 //  -----------------------------------------------------------------------------
+using BalsamicSolutions.AWSUtilities.EntityFramework;
 using BalsamicSolutions.AWSUtilities.EntityFramework.DataAnnotations;
 using BalsamicSolutions.AWSUtilities.RDS;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
@@ -69,20 +72,19 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                         g.OrderBy(item => item.index.Order).Select(item => item.prop).ToArray())
                     );
 
-                if (!entityType.IsQueryType)
+
+                EntityTypeBuilder entity = modelBuilder.Entity(entityType.ClrType);
+                foreach (var indexParam in indexParams.Concat(namedIndexParams))
                 {
-                    EntityTypeBuilder entity = modelBuilder.Entity(entityType.ClrType);
-                    foreach (var indexParam in indexParams.Concat(namedIndexParams))
+                    IndexBuilder indexBuilder = entity
+                        .HasIndex(indexParam.PropertyNames)
+                        .IsUnique(indexParam.IsUnique);
+                    if (!String.IsNullOrEmpty(indexParam.IndexName))
                     {
-                        IndexBuilder indexBuilder = entity
-                            .HasIndex(indexParam.PropertyNames)
-                            .IsUnique(indexParam.IsUnique);
-                        if (!String.IsNullOrEmpty(indexParam.IndexName))
-                        {
-                            indexBuilder.HasName(indexParam.IndexName);
-                        }
+                        indexBuilder.HasName(indexParam.IndexName);
                     }
                 }
+
             }
         }
 
@@ -131,7 +133,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             Dictionary<string, Dictionary<string, FullTextAttribute>> fullTextMap = new Dictionary<string, Dictionary<string, FullTextAttribute>>(StringComparer.OrdinalIgnoreCase);
             foreach (IEntityType entityType in dbCtx.Model.GetEntityTypes().Where(ent => ent.ClrType.GetCustomAttribute<OwnedAttribute>() == null).ToList())
             {
-                string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
+                string tableName = lowerCaseTableNames ? entityType.GetTableName().ToLowerInvariant() : entityType.GetTableName();
                 string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
                 tableName = tableName + ":" + indexName;
                 foreach (PropertyInfo pInfo in entityType.ClrType.GetProperties())
@@ -255,7 +257,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             Dictionary<string, string> returnValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (IEntityType entityType in dbCtx.Model.GetEntityTypes().Where(ent => ent.ClrType.GetCustomAttribute<OwnedAttribute>() == null).ToList())
             {
-                string tableName = lowerCaseTableNames ? entityType.Relational().TableName.ToLowerInvariant() : entityType.Relational().TableName;
+                string tableName = lowerCaseTableNames ? entityType.GetTableName().ToLowerInvariant() : entityType.GetTableName();
                 string indexName = dbCtx.GetFullTextIndexName(entityType.ClrType);
                 string keyName = tableName + ":" + indexName;
                 Dictionary<string, FullTextAttribute> fullTextMap = new Dictionary<string, FullTextAttribute>(StringComparer.OrdinalIgnoreCase);
@@ -424,10 +426,10 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         internal static DbContext GetDbContext(this IQueryable iQueryable)
         {
             BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Instance;
-            object queryCompiler = typeof(Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider).GetField("_queryCompiler", bindingFlags).GetValue(iQueryable.Provider);
+            object queryCompiler = typeof(EntityQueryProvider).GetField("_queryCompiler", bindingFlags).GetValue(iQueryable.Provider);
             object queryContextFactory = queryCompiler.GetType().GetField("_queryContextFactory", bindingFlags).GetValue(queryCompiler);
-            object dependencies = typeof(Microsoft.EntityFrameworkCore.Query.RelationalQueryContextFactory).GetProperty("Dependencies", bindingFlags).GetValue(queryContextFactory);
-            Type queryContextDependencies = typeof(DbContext).Assembly.GetType(typeof(Microsoft.EntityFrameworkCore.Query.QueryContextDependencies).FullName);
+            object dependencies = typeof(RelationalQueryContextFactory).GetField("_dependencies", bindingFlags).GetValue(queryContextFactory);
+            Type queryContextDependencies = typeof(DbContext).Assembly.GetType(typeof(QueryContextDependencies).FullName);
             object stateManagerProperty = queryContextDependencies.GetProperty("StateManager", bindingFlags | BindingFlags.Public).GetValue(dependencies);
             Microsoft.EntityFrameworkCore.ChangeTracking.Internal.IStateManager stateManager = (Microsoft.EntityFrameworkCore.ChangeTracking.Internal.IStateManager)stateManagerProperty;
             return stateManager.Context;
@@ -455,7 +457,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <returns></returns>
         public static int ExecuteSqlCommand(this DbContext dbCtx, string sqlText)
         {
-            return dbCtx.Database.ExecuteSqlCommand(sqlText, Array.Empty<object>());
+            return dbCtx.Database.ExecuteSqlRaw(sqlText, new object[0]);
         }
 
         /// <summary>
@@ -465,7 +467,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <returns></returns>
         public static int ExecuteSqlCommand(this DbContext dbCtx, string sqlText, params object[] parameters)
         {
-            return dbCtx.Database.ExecuteSqlCommand(sqlText, parameters);
+            return dbCtx.Database.ExecuteSqlRaw(sqlText, parameters);
         }
 
         /// <summary>
@@ -476,26 +478,20 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <param name="cancellationToken"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        public static async Task<RelationalDataReader> ExecuteSqlQueryAsync(this DatabaseFacade databaseFacade,
+        public static async Task<DbDataReaderWrapper> ExecuteSqlQueryAsync(this DatabaseFacade databaseFacade,
                                                             string sql,
                                                             CancellationToken cancellationToken = default(CancellationToken),
                                                             params object[] parameters)
         {
-            IConcurrencyDetector concurrencyDetector = databaseFacade.GetService<IConcurrencyDetector>();
+            return await Task.Run(() =>
+             {
+                 var command = databaseFacade.GetDbConnection().CreateCommand();
+                 command.CommandText = sql;
+                 command.CommandType = System.Data.CommandType.Text;
 
-            using (concurrencyDetector.EnterCriticalSection())
-            {
-                RawSqlCommand rawSqlCommand = databaseFacade
-                    .GetService<IRawSqlCommandBuilder>()
-                    .Build(sql, parameters);
+                 return new DbDataReaderWrapper(command);
 
-                return await rawSqlCommand
-                    .RelationalCommand
-                    .ExecuteReaderAsync(
-                        databaseFacade.GetService<IRelationalConnection>(),
-                        parameterValues: rawSqlCommand.ParameterValues,
-                        cancellationToken: cancellationToken).ConfigureAwait(false);
-            }
+             });
         }
 
         /// <summary>
@@ -505,22 +501,12 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <param name="sql"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        public static RelationalDataReader ExecuteSqlQuery(this DatabaseFacade databaseFacade, string sql, params object[] parameters)
+        public static DbDataReaderWrapper ExecuteSqlQuery(this DatabaseFacade databaseFacade, string sql, params object[] parameters)
         {
-            IConcurrencyDetector concurrencyDetector = databaseFacade.GetService<IConcurrencyDetector>();
-
-            using (concurrencyDetector.EnterCriticalSection())
-            {
-                RawSqlCommand rawSqlCommand = databaseFacade
-                    .GetService<IRawSqlCommandBuilder>()
-                    .Build(sql, parameters);
-
-                return rawSqlCommand
-                    .RelationalCommand
-                    .ExecuteReader(
-                        databaseFacade.GetService<IRelationalConnection>(),
-                        parameterValues: rawSqlCommand.ParameterValues);
-            }
+            var command = databaseFacade.GetDbConnection().CreateCommand();
+            command.CommandText = sql;
+            command.CommandType = System.Data.CommandType.Text;
+            return new DbDataReaderWrapper(command);
         }
     }
 }

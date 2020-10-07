@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
+using MySql.Data.EntityFrameworkCore.Metadata;
 
 namespace Demo.Data.Migrations
 {
-    public partial class InitialMigration : Migration
+    public partial class InitialCreate : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -11,7 +12,7 @@ namespace Demo.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<long>(nullable: false)
-                        .Annotation("MySQL:AutoIncrement", true),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     FirstName = table.Column<string>(maxLength: 128, nullable: true),
                     LastName = table.Column<string>(maxLength: 128, nullable: true),
                     Email = table.Column<string>(maxLength: 128, nullable: true),
@@ -27,7 +28,7 @@ namespace Demo.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<long>(nullable: false)
-                        .Annotation("MySQL:AutoIncrement", true),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Note = table.Column<string>(maxLength: 2048, nullable: true),
                     Topic = table.Column<string>(maxLength: 512, nullable: true)
                 },
@@ -41,7 +42,7 @@ namespace Demo.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<long>(nullable: false)
-                        .Annotation("MySQL:AutoIncrement", true),
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Note = table.Column<string>(maxLength: 2048, nullable: true),
                     Topic = table.Column<string>(maxLength: 512, nullable: true)
                 },

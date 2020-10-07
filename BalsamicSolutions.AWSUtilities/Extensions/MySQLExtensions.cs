@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Reflection;
+using BalsamicSolutions.AWSUtilities.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -58,7 +59,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             using (var dataReader = dbCtx.Database.ExecuteSqlQuery("SELECT UTC_TIMESTAMP;"))
             {
                 DbDataReader dbDataReader = dataReader.DbDataReader;
-                if (null != dbDataReader && dataReader.Read())
+                if (null != dbDataReader && dbDataReader.Read())
                 {
                     object queryResponse = dbDataReader[0];
                     if (null != queryResponse)
@@ -107,7 +108,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
                 }
             }
             //check the MySql settings foro the table names
-            using (RelationalDataReader relReader = dbCtx.Database.ExecuteSqlQuery("SHOW VARIABLES LIKE \"lower_case_table_names\";", new object[] { }))
+            using (DbDataReaderWrapper relReader = dbCtx.Database.ExecuteSqlQuery("SHOW VARIABLES LIKE \"lower_case_table_names\";", new object[] { }))
             {
                 var dbReader = relReader.DbDataReader;
                 if (dbReader.Read())
@@ -136,7 +137,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         {
             bool lowerCaseTableNames = dbCtx.MySqlLowerCaseTableNames();
             IEntityType entityType = dbCtx.Model.FindEntityType(modelType);
-            string tableName = entityType.Relational().TableName;
+            string tableName = entityType.GetTableName();
             if (lowerCaseTableNames) tableName = tableName.ToLowerInvariant();
             return tableName;
         }
@@ -154,7 +155,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
             //get all the entities that are not flagged as "owned"
             foreach (IEntityType entityType in dbCtx.Model.GetEntityTypes().Where(ent => ent.ClrType.GetCustomAttribute<OwnedAttribute>() == null).ToList())
             {
-                string tableName = entityType.Relational().TableName;
+                string tableName = entityType.GetTableName();
                 if (lowerCaseTableNames) tableName = tableName.ToLowerInvariant();
                 returnvalue.Add(tableName);
             }
