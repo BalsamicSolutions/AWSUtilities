@@ -31,12 +31,7 @@ namespace ConsoleCore.Demos
                 Contact oneCt = dataCtx.Contacts.BooleanFullTextContains("Boyett").FirstOrDefault();
                 Stopwatch watchOne = new Stopwatch();
                 //Find all notes with ignorant or marriage in it
-                watchOne.Start();
-                List<NoteWithFulltext> matchOne = dataCtx.NotesWithFulltext.BooleanFullTextContains("ignorant marriage").ToList();
-                watchOne.Stop();
-                long ftElapsedMilliseconds = watchOne.ElapsedMilliseconds;
-                Console.WriteLine($"using fulltext found {matchOne.Count} in {watchOne.ElapsedMilliseconds} milliseconds");
-
+               
                 //Now do it with a simple contains
                 watchOne.Reset();
                 watchOne.Start();
@@ -48,9 +43,27 @@ namespace ConsoleCore.Demos
                 long containsElapsedMilliseconds = watchOne.ElapsedMilliseconds;
                 Console.WriteLine($"using contains found {matchOldFashioned.Count} in {watchOne.ElapsedMilliseconds} milliseconds");
 
-                decimal percentImproved = ((decimal)containsElapsedMilliseconds / (decimal)ftElapsedMilliseconds);
-                string textPercent = percentImproved.ToString("P2");
-                Console.WriteLine($"FullText is {textPercent} %  better than Contains for searching accross {totalNotes} items");
+
+                watchOne.Start();
+                List<NoteWithFulltext> matchOne = dataCtx.NotesWithFulltext.BooleanFullTextContains("ignorant marriage").ToList();
+                watchOne.Stop();
+                long ftElapsedMilliseconds = watchOne.ElapsedMilliseconds;
+                Console.WriteLine($"using fulltext found {matchOne.Count} in {watchOne.ElapsedMilliseconds} milliseconds");
+
+                if (ftElapsedMilliseconds > containsElapsedMilliseconds)
+                {
+                    decimal percentChanged = ((decimal)ftElapsedMilliseconds / (decimal)containsElapsedMilliseconds);
+                    percentChanged = percentChanged - 1;
+                    string textPercent = percentChanged.ToString("P2");
+                    Console.WriteLine($"Contains is {textPercent} better than FullText for searching accross {totalNotes} items");
+                }
+                else
+                {
+                    decimal percentChanged = ((decimal)containsElapsedMilliseconds / (decimal)ftElapsedMilliseconds);
+                    percentChanged = percentChanged - 1;
+                    string textPercent = percentChanged.ToString("P2");
+                    Console.WriteLine($"FullText is {textPercent}  better than Contains for searching accross {totalNotes} items");
+                }
 
                 //Find all notes with ignorant and marriage in it
                 List<NoteWithFulltext> matchTwo = dataCtx.NotesWithFulltext.BooleanFullTextContains("+ignorant +marriage").ToList();
