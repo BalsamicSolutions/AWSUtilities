@@ -12,6 +12,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using BalsamicSolutions.AWSUtilities.EntityFramework;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 
 namespace ConsoleCore.Demos
 {
@@ -24,6 +26,7 @@ namespace ConsoleCore.Demos
         {
             using (DemoDataContext dataCtx = new DemoDataContext())
             {
+
                 //Boolean references https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
                 //simple find any text by Boyett
                 long totalNotes = dataCtx.NotesWithFulltext.Count();
@@ -89,6 +92,17 @@ namespace ConsoleCore.Demos
                 Console.WriteLine($"Natural language expanded fulltext  found {matchFive.Count} with complex rules 'what the hell?' ");
 
 
+            }
+        }
+
+        /// <summary>
+        /// tests the regular expression query extension
+        /// </summary>
+        public static void ExtensionTesting()
+        {
+            using (DemoDataContext dataCtx = new DemoDataContext())
+            {
+ 
             }
         }
 

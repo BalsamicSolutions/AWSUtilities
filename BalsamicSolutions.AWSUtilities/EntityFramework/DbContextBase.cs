@@ -17,6 +17,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using BalsamicSolutions.AWSUtilities.RDS;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace BalsamicSolutions.AWSUtilities.EntityFramework
 {
@@ -131,6 +133,13 @@ namespace BalsamicSolutions.AWSUtilities.EntityFramework
         /// <param name="modelBuilder"></param>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            MethodInfo regexMatch = typeof(BalsamicSolutions.AWSUtilities.EntityFramework.DbFunctions).GetMethod("RegexMatch", BindingFlags.Static | BindingFlags.Public);
+            modelBuilder.HasDbFunction(regexMatch)
+               .HasTranslation(args =>
+               {
+                   var newArgs = args.ToArray();
+                   return (SqlExpression)new RegexMatchExpression(newArgs[0], newArgs[1]);
+               });
             base.OnModelCreating(modelBuilder);
             modelBuilder.BuildIndexesFromAnnotations();
         }

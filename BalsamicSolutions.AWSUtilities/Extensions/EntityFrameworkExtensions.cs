@@ -419,7 +419,7 @@ namespace BalsamicSolutions.AWSUtilities.Extensions
         /// <summary>
         /// get the dbcontext from a IQueryable
         /// this is a cheat so we only use it internally
-        /// this one only works with EF 2.X
+        /// this one only works with EF 3.1XX
         /// </summary>
         /// <param name="dbSet"></param>
         /// <returns></returns>
